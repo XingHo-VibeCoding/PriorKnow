@@ -1,0 +1,43 @@
+# 忽略文件（.gitignore）
+# 作用：告诉 Git 哪些文件「不要」存进仓库。写在这里的文件不会被提交，也不会被上传到 GitHub。
+
+# ---- 敏感信息：绝不允许上传 ----
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+secrets.json
+
+# ---- 依赖目录 ----
+node_modules/
+.pnpm-store/
+vendor/
+
+# ---- 构建产物 ----
+dist/
+build/
+out/
+.next/
+*.tsbuildinfo
+
+# ---- 本地数据库文件 ----
+*.sqlite
+*.sqlite3
+*.db
+*.db-journal
+*.db-wal
+
+# ---- 日志 ----
+*.log
+logs/
+
+# ---- 工具与编辑器临时文件 ----
+.workbuddy/
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*~

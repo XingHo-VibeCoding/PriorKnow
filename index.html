@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>知先 PriorKnow · 占位页</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #16181d;
+      --card: #1e222a;
+      --line: #2c323d;
+      --text: #e8eaee;
+      --muted: #9aa3b2;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+    .card {
+      width: 100%;
+      max-width: 520px;
+      padding: 36px 32px;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+    }
+    h1 { margin: 0 0 8px; font-size: 24px; font-weight: 500; letter-spacing: 0.5px; }
+    .en { margin: 0 0 20px; font-size: 13px; color: var(--muted); letter-spacing: 0.4px; }
+    .slogan { margin: 0 0 24px; font-size: 15px; line-height: 1.7; }
+    .divider { height: 1px; background: var(--line); margin: 0 0 20px; }
+    ul { margin: 0; padding-left: 18px; color: var(--muted); font-size: 13px; line-height: 2; }
+    .badge {
+      display: inline-block;
+      margin-top: 24px;
+      padding: 6px 12px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <h1>知先</h1>
+    <p class="en">PriorKnow — Next Action Scheduler</p>
+    <p class="slogan">别问先做什么，知先告诉你现在做什么。<br />Know what to do now.</p>
+    <div class="divider"></div>
+    <ul>
+      <li>状态：仓库已就绪，功能开发从 Day 7 开始</li>
+      <li>形态：H5 / PWA，数据存本地，离线可用</li>
+      <li>核心：动态优先队列 + 可解释排序</li>
+    </ul>
+    <p class="badge">占位页 · 由 Day 2 生成，仅用于验证首次提交</p>
+  </main>
+</body>
+</html>

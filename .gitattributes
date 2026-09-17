@@ -1,0 +1,18 @@
+# 换行符规则（.gitattributes）
+# 作用：项目文件在 WSL/Linux 里，Git 在 Windows 上运行。
+# 如果不统一，Git 会把「换行符不同」误判成「整个文件都被改了」，产生大量假改动。
+# 这里统一规定：仓库里的文本文件一律用 LF 换行。
+
+* text=auto eol=lf
+
+# 二进制文件不做换行符转换
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.zip binary
