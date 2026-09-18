@@ -33,6 +33,9 @@ out/
 *.log
 logs/
 
+# ---- 仅本地保留的课程/个人资料（不上传仓库） ----
+28天VibeCoding学习打卡计划.md
+
 # ---- 工具与编辑器临时文件 ----
 .workbuddy/
 .DS_Store
