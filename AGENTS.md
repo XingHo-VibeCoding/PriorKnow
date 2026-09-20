@@ -9,7 +9,7 @@
 
 - **项目名**：PriorKnow（中文名「知先」）
 - **一句话介绍**：以动态优先队列为核心的「下一个最优行动调度器」—— 输入一堆任务，它算出你现在最该做哪件，并解释为什么（面向传智杯这类比赛，形态为 H5 / PWA）。
-- **当前阶段**：第 1 周 Day 3 —— 已完成建仓库与首提交，**今天在做产品调研（research.md），还没开始写代码**。
+- **当前阶段**：第 1 周 Day 5 —— 三份规范文档（research.md / PRD.md / TECH_DESIGN.md）已入库，**尚未开始写代码**。技术路线已定：React + Vite + TypeScript，数据层做抽象，第 1–2 周挂 IndexedDB、第 3 周挂 CloudBase。
 
 ## 二、我是谁 / 我的基础
 
@@ -41,15 +41,21 @@
 
 ## 五、目录约定
 
-> 目前还没写代码，等 Day 2 之后真正开始动手时再补充完善。
+> 以下是仓库根目录的现有结构。等第 2 周真正开始写代码后，再补充 `core/`（算法）、`data/`（数据层）、`ui/`（界面）等目录。
 
 ```
 PriorKnow/
-├── AGENTS.md        # 本文件：项目协作规则
-├── 项目描述.md      # 产品总纲（知先 / PriorKnow）
-├── research.md      # 产品调研（课程 Day 3，调研竞品）
-├── .gitignore       # 忽略规则
-└── （后续目录待补充）
+├── AGENTS.md          # 本文件：项目协作规则
+├── 项目描述.md        # 产品总纲（知先 / PriorKnow）
+├── research.md        # 产品调研（Day 3，竞品对比）
+├── PRD.md             # 产品需求文档（Day 4，MVP 功能与验收标准）
+├── TECH_DESIGN.md     # 技术设计（Day 5，技术路线 / 数据模型 / 接口契约 / 数据流）
+├── index.html         # 占位页（Day 2）
+├── docs/              # 文档配图（如 data-flow.png 数据流图）
+├── screenshots/       # 每日打卡截图
+├── .gitignore         # 忽略规则
+├── .gitattributes     # 换行符统一（LF）
+└── 28天VibeCoding学习打卡计划.md   # 课程计划（本地保留，已加入忽略名单，不入库）
 ```
 
 ## 六、禁止事项
@@ -63,9 +69,11 @@ PriorKnow/
 
 - [x] **Day 1**：装齐环境（WorkBuddy / Git / Node.js）+ 注册 GitHub + 建好工作区 + 存入 AGENTS.md
 - [x] **Day 2**：建立代码仓库（PriorKnow，Public）+ index.html 占位页 + 首次提交（含 GitHub 仓库首页截图）
-- [x] **Day 3（进行中）**：产品调研（research.md 对比 2–3 个竞品）+ 把课程计划文档移出版本管理
-- [ ] **Day 4**：待补充（计划里是写 PRD）
+- [x] **Day 3**：产品调研 —— research.md 对比 Todoist / 滴答清单 / 微软 To Do，结论：三家都在「记录」层卷，没人回答「我现在最该做哪件、为什么」；同时把课程计划文档移出版本管理
+- [x] **Day 4**：写 PRD —— PRD.md（MVP 9 项功能、4 个视图、7 条异常与边界、17 条验收标准、AI 自检记录）；明确「砍掉云同步、暂缓优先级公式精细调参」
+- [x] **Day 5**：技术设计 —— TECH_DESIGN.md（技术路线 / 三层分工 / 数据层抽象 / 数据模型 / 接口契约 / 数据流图）+ docs/data-flow.png
+- [ ] **Day 6**：待补充
 
 ---
 
-_最后更新：2026-09-17_
+_最后更新：2026-09-20_

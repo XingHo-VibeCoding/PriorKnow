@@ -96,7 +96,7 @@
 ## 四、项目结构
 
 ```
-prionknow/
+priorknow/
 ├── core/                  # 核心算法（纯 TypeScript，不依赖 React）
 │   ├── priority.ts        # 优先级公式（权重集中在这里）
 │   ├── priorityQueue.ts   # 优先队列 / 二叉堆（上浮、下沉）
