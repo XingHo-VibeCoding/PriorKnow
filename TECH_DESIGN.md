@@ -192,7 +192,12 @@ prionknow/
 
 ## 七、数据流图
 
-```mermaid
+![知先数据流图](./docs/data-flow.png)
+
+<details>
+<summary>mermaid 源码（点开可复制修改）</summary>
+
+```text
 flowchart TD
     U["用户操作<br/>加任务 / 拖滑块 / 勾完成"] --> UI["界面层<br/>今日队列 · 任务编辑 · 专注模式"]
     UI --> BIZ["业务层<br/>优先级计算 · 优先队列 · 时间预算"]
@@ -200,6 +205,8 @@ flowchart TD
     IFACE --> IDB["IndexedDB 实现<br/>第 1–2 周"]
     IFACE -.->|第 3 周新增| CB["CloudBase 实现<br/>云函数 + 云数据库"]
 ```
+
+</details>
 
 **这张图在说什么（数据从哪来、到哪去）**：
 
@@ -211,7 +218,9 @@ flowchart TD
 
 **关键点**：第 3 周接入云端时，只有图中 `数据层接口 → CloudBase` 这条虚线是新增的，**其余部分一动不动**。
 
-> **画图备注**：本图刻意画成**单向无环**。最初版本画了「存储 → 业务层重算 → 界面渲染」的回边，GitHub 渲染时报错 `Could not find a suitable point for the given distance`（mermaid 布局算法处理不了环路）。数据流图只画下行、回程用文字说明，既避免渲染失败，也更清楚地表达了「数据从哪来、到哪去」。
+> **画图备注**：本图源码是 mermaid，此处改用渲染好的图片（`docs/data-flow.png`）。原因是 GitHub 页面渲染这段 mermaid 时报错 `Could not find a suitable point for the given distance`；而同一份代码在本地 mermaid v10 与 v11 下都能正常渲染，说明问题出在渲染环境而非图的写法。改用图片可确保任何环境下都能看到这张图，源码仍保留在上方折叠块里可随时修改。
+>
+> 另外，图中只画「去」的下行流，不画回程——回程走的是同一条路径的反方向，画成闭环反而看不清。
 
 ---
 
