@@ -1,0 +1,650 @@
+/* 知先 PriorKnow —— 基础样式（纯 CSS，不引 UI 框架） */
+
+:root {
+  --ink: #1c1b1f;
+  --ink-soft: #5c5a63;
+  --ink-faint: #8e8b95;
+  --paper: #f6f5f2;
+  --card: #ffffff;
+  --line: #e4e1da;
+  --accent: #c8452f;
+  --accent-soft: #fbeae6;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
+    'Microsoft YaHei', 'Hiragino Sans GB', sans-serif;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+.page {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 56px 24px 72px;
+}
+
+/* ---- 头部 ---- */
+
+.hero {
+  margin-bottom: 32px;
+}
+
+.hero-top {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.brand {
+  font-size: 44px;
+  font-weight: 700;
+  letter-spacing: 4px;
+}
+
+.brand-en {
+  font-size: 16px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.tagline {
+  margin: 12px 0 0;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.sub {
+  margin: 6px 0 0;
+  color: var(--ink-soft);
+  font-size: 15px;
+}
+
+.badge {
+  display: inline-block;
+  margin-top: 18px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* ---- 卡片 ---- */
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 22px 24px;
+  margin-bottom: 18px;
+}
+
+.card h2 {
+  margin: 0 0 16px;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: var(--ink-soft);
+}
+
+/* ---- 数据流 ---- */
+
+.flow {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.flow li {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 11px 0;
+  border-bottom: 1px dashed var(--line);
+}
+
+.flow li:last-child {
+  border-bottom: none;
+}
+
+.chip {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.flow-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.flow-text strong {
+  font-size: 14px;
+}
+
+.flow-text span {
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+/* ---- 进度清单 ---- */
+
+.todo {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.todo li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  font-size: 14px;
+  color: var(--ink-soft);
+}
+
+.todo li.done {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.todo .mark {
+  flex: none;
+  width: 18px;
+  text-align: center;
+  color: var(--ink-faint);
+}
+
+.todo li.done .mark {
+  color: var(--accent);
+}
+
+/* ---- 数据层自检面板 ---- */
+
+.hint {
+  margin: 0 0 16px;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.hint code {
+  padding: 1px 6px;
+  border-radius: 5px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+}
+
+.hint strong {
+  color: var(--accent);
+}
+
+.btn-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.btn-row button {
+  padding: 8px 14px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--card);
+  color: var(--ink);
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.btn-row button:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.btn-row button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-row button.danger:hover:not(:disabled) {
+  border-color: #b3372a;
+  background: #fbeae6;
+}
+
+.status {
+  margin: 14px 0 0;
+  padding: 9px 12px;
+  border-radius: 9px;
+  background: var(--paper);
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.task-list {
+  list-style: none;
+  margin: 16px 0 0;
+  padding: 0;
+  border-top: 1px dashed var(--line);
+}
+
+.task-list li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 0;
+  border-bottom: 1px dashed var(--line);
+}
+
+.task-list li.is-done .task-title {
+  text-decoration: line-through;
+  color: var(--ink-faint);
+}
+
+.task-title {
+  font-size: 14px;
+}
+
+.task-meta {
+  font-size: 12px;
+  color: var(--ink-faint);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+/* ---- 排序预览 ---- */
+
+.rank-list {
+  list-style: none;
+  margin: 16px 0 0;
+  padding: 0;
+  border-top: 1px dashed var(--line);
+}
+
+.rank-list li {
+  display: flex;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px dashed var(--line);
+}
+
+/* 不在前段的任务（未到期）整体压暗一点，视觉上呼应「排在后面」 */
+.rank-list li.not-urgent {
+  opacity: 0.72;
+}
+
+.rank-no {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  margin-top: 2px;
+  border-radius: 7px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rank-list li.not-urgent .rank-no {
+  background: var(--ink-faint);
+}
+
+.rank-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.rank-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.rank-title {
+  font-size: 14px;
+}
+
+.rank-score {
+  flex: none;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
+.rank-reason {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
+.rank-factors {
+  margin: 3px 0 0;
+  font-size: 11px;
+  color: var(--ink-faint);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+/* ---- 加任务表单 ---- */
+
+.composer {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.composer-title {
+  width: 100%;
+  padding: 11px 13px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--card);
+  color: var(--ink);
+  font-size: 15px;
+  font-family: inherit;
+}
+
+.composer-title:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.composer-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
+.field input {
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--card);
+  color: var(--ink);
+  font-size: 13px;
+  font-family: inherit;
+}
+
+.field input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.field input[type='number'] {
+  width: 148px;
+}
+
+.stars {
+  display: flex;
+  gap: 2px;
+  height: 33px;
+  align-items: center;
+}
+
+.star {
+  padding: 0 2px;
+  border: none;
+  background: none;
+  color: var(--line);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.star.on {
+  color: #e0a020;
+}
+
+.composer-foot {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.composer-foot button.primary {
+  padding: 9px 18px;
+  border: 1px solid var(--accent);
+  border-radius: 9px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.composer-foot button.primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.composer-note {
+  font-size: 12px;
+  color: var(--ink-faint);
+}
+
+.composer-error {
+  margin: 0;
+  padding: 9px 12px;
+  border-radius: 9px;
+  background: #fbeae6;
+  color: #b3372a;
+  font-size: 13px;
+}
+
+/* ---- 今日队列 ---- */
+
+.queue-head {
+  margin: 0 0 4px;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.queue-head strong {
+  color: var(--accent);
+  font-size: 15px;
+}
+
+.queue-notice {
+  color: var(--ink-faint);
+}
+
+.queue {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  border-top: 1px dashed var(--line);
+}
+
+.queue li {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 0;
+  border-bottom: 1px dashed var(--line);
+}
+
+/* 首项（当前最该做的）单独强化 */
+.queue li:first-child {
+  background: linear-gradient(90deg, var(--accent-soft) 0%, transparent 62%);
+  border-radius: 8px;
+  padding-left: 10px;
+  padding-right: 10px;
+  margin-left: -10px;
+  margin-right: -10px;
+}
+
+/* 不在前段的任务（未到期 / 无期限）整体压暗，视觉上呼应「排在后面」。
+   ⚠️ 必须排除首项：首项是「当前最该做的」，若它恰好无期限，
+   压暗会与高亮背景打架，看起来像排在最后。 */
+.queue li.not-urgent:not(:first-child) {
+  opacity: 0.72;
+}
+
+.queue-no {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  margin-top: 1px;
+  border-radius: 8px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.queue li.not-urgent:not(:first-child) .queue-no {
+  background: var(--ink-faint);
+}
+
+.queue-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.queue-line {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.queue-title {
+  font-size: 15px;
+}
+
+.queue-score {
+  flex: none;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
+.queue-why {
+  margin: 5px 0 0;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.queue-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 5px;
+  font-size: 11px;
+  color: var(--ink-faint);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.queue-actions {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.queue-actions button {
+  padding: 5px 11px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--card);
+  color: var(--ink);
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.queue-actions button:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.queue-actions button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.queue-actions button.ghost {
+  color: var(--ink-faint);
+}
+
+.queue-actions button.ghost:hover:not(:disabled) {
+  border-color: #b3372a;
+  background: #fbeae6;
+  color: #b3372a;
+}
+
+.empty {
+  padding: 26px 0 18px;
+  text-align: center;
+}
+
+.empty-title {
+  margin: 0;
+  font-size: 15px;
+  color: var(--ink-soft);
+}
+
+.empty-sub {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: var(--ink-faint);
+}
+
+.done-line {
+  margin: 14px 0 0;
+  padding-top: 12px;
+  border-top: 1px dashed var(--line);
+  font-size: 12px;
+  color: var(--ink-faint);
+}
+
+/* ---- 页脚 ---- */
+
+.foot {
+  margin-top: 28px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--ink-faint);
+}

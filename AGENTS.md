@@ -8,8 +8,9 @@
 ## 一、项目是什么
 
 - **项目名**：PriorKnow（中文名「知先」）
-- **一句话介绍**：以动态优先队列为核心的「下一个最优行动调度器」—— 输入一堆任务，它算出你现在最该做哪件，并解释为什么（面向传智杯这类比赛，形态为 H5 / PWA）。
-- **当前阶段**：第 1 周 Day 6 —— 三份规范文档（research.md / PRD.md / TECH_DESIGN.md）已入库，**尚未开始写代码**（Day 7 开始）。技术路线已定：React + Vite + TypeScript，数据层做抽象，第 1–2 周挂 IndexedDB、第 3 周挂 CloudBase。
+- **一句话介绍**：以动态优先队列为核心的「下一个最优行动调度器」—— 输入一堆任务，它算出你现在最该做哪件，并解释为什么（形态为 H5 / PWA）。
+- **项目定位**：**当前不以参赛为目标**，先专心把产品本身做好。参赛相关的定位与设想**只保留在 `项目描述.md`**，不写进产品界面，也不在这里展开。
+- **当前阶段**：第 1 周 Day 7 —— **MVP 第一版已跑通**。四份文档（research / PRD / TECH_DESIGN / AGENTS）已入库；代码在 `app/` 子目录，技术路线 React + Vite + TypeScript，数据层已做抽象（第 1–2 周挂 IndexedDB，第 3 周挂 CloudBase）。Day 7 完成的闭环：加任务 → 存进 IndexedDB → 算分 → 排队列 → 显示理由。下一步进入第 2 周（前端补全）。
 
 ## 二、我是谁 / 我的基础
 
@@ -41,7 +42,7 @@
 
 ## 五、目录约定
 
-> 以下是仓库根目录的现有结构。等第 2 周真正开始写代码后，再补充 `core/`（算法）、`data/`（数据层）、`ui/`（界面）等目录。
+> 以下是仓库根目录的现有结构。Day 7 起代码放在 `app/` 子目录，框架已按技术设计落地。
 
 ```
 PriorKnow/
@@ -51,12 +52,27 @@ PriorKnow/
 ├── PRD.md             # 产品需求文档（Day 4，MVP 功能与验收标准）
 ├── TECH_DESIGN.md     # 技术设计（Day 5，技术路线 / 数据模型 / 接口契约 / 数据流）
 ├── index.html         # 占位页（Day 2）
+├── app/               # 应用代码（Day 7 起）
+│   ├── README.md      # 运行说明（怎么启动、踩过什么坑）
+│   ├── package.json   # 依赖与脚本
+│   ├── vite.config.ts # Vite 配置（含 WSL 网络盘所需的轮询监听）
+│   ├── tsconfig.json  # TypeScript 配置
+│   └── src/
+│       ├── main.tsx   # 程序入口
+│       ├── App.tsx    # 界面外壳
+│       ├── styles.css # 样式（纯 CSS，不引 UI 框架）
+│       ├── core/      # 业务层：纯 TS，不依赖 React（types / priority / priorityQueue）
+│       ├── data/      # 数据层：repository（接口）/ local-indexeddb（实现）/ index（出口）
+│       └── ui/        # 界面层：TaskComposer / TodayQueue
 ├── docs/              # 文档配图（如 data-flow.png 数据流图）
 ├── screenshots/       # 每日打卡截图
 ├── .gitignore         # 忽略规则
 ├── .gitattributes     # 换行符统一（LF）
 └── 28天VibeCoding学习打卡计划.md   # 课程计划（本地保留，已加入忽略名单，不入库）
 ```
+
+**三层依赖是单向的**：`ui/` → `data/` 接口 + `core/` 算法。**`core/` 绝不依赖 React**，
+这样算法能独立测试，第 3 周换云端实现时上层一行不用改。
 
 ## 六、禁止事项
 
@@ -73,7 +89,8 @@ PriorKnow/
 - [x] **Day 4**：写 PRD —— PRD.md（MVP 9 项功能、4 个视图、7 条异常与边界、17 条验收标准、AI 自检记录）；明确「砍掉云同步、暂缓优先级公式精细调参」
 - [x] **Day 5**：技术设计 —— TECH_DESIGN.md（技术路线 / 三层分工 / 数据层抽象 / 数据模型 / 接口契约 / 数据流图）+ docs/data-flow.png
 - [x] **Day 6**：检查并完善 AGENTS.md —— 核查时发现三条 Day 1 约束缺失，补回第八节；新增第九节个人规则两条（不代笔、改动附验证方式）
-- [ ] **Day 7**：待补充
+- [x] **Day 7**：用项目文档生成第一个可运行版本 —— `app/`（Vite + React + TS）。分四步：① 骨架跑通 ② 数据层接口 + IndexedDB 实现 ③ 优先级算法 + 二叉堆优先队列 ④ 今日队列闭环。闭环已通：加任务 → 存库 → 算分 → 自动重排 → 显示理由（CDP 真点验证 13 项全过，含刷新持久化与 IndexedDB 原始记录核对）
+- [ ] **Day 8**：待补充
 
 ---
 
@@ -115,4 +132,4 @@ PriorKnow/
 
 ---
 
-_最后更新：2026-09-21_
+_最后更新：2026-09-22_
