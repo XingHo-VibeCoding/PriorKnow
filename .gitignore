@@ -14,6 +14,9 @@ secrets.json
 node_modules/
 .pnpm-store/
 vendor/
+# npm 的本地缓存。WSL 里 ~/.npm 不可写，装依赖时必须用 --cache 指到仓库内，
+# 不忽略的话 `git add -A` 会把几十兆缓存一起提交（Day 8 收尾时差点中招）。
+.npm-cache/
 
 # ---- 构建产物 ----
 dist/
