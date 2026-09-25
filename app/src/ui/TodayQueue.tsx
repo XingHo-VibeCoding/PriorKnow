@@ -1,77 +1,34 @@
-// 今日队列 —— Day 7 第 4 步的主角，闭环的「算」与「回」
+// 今日队列 —— 主视图的主角
 //
-// 依据：PRD 5.1 视图一（今日队列）+ F1（增删改查）+ F2 + F3 + F5。
+// 依据：PRD 5.1（视图一）+ F3（队列可视化）+ F5（可解释排序）+ 第七节（边界状态）。
 //
-// 这一步的意义在于：排序**不再需要用户按按钮**。
-// 只要数据变（新增 / 完成 / 删除），队列自己重算、自己重排 ——
-// 这才叫「自动调度」，前面三步的算法和存储到这里才真正合成一个产品。
+// Day 7 已经做到的：排序**不需要用户按按钮**，数据一变队列自己重算、自己重排。
+// Day 8 补的是「看得见」的部分：
+//   · 卡片化 —— 每件任务是一张卡片，排第一的那张明显突出；
+//   · 点开解释 —— 点卡片展开三因子明细，让人看清分数是怎么来的（F5）；
+//   · 四种状态 —— 加载中 / 成功 / 空 / 错误，四种都有对应的界面，不留白屏。
 //
 // ⚠️ 这个文件不碰 IndexedDB，只认 data/ 出口的接口；算分全走 core/。
+//   读库与写操作都从 useTaskQueue 来 —— 预算条和数据面板用的是同一份状态。
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useState } from 'react'
 import { taskRepo } from '../data'
-import { rankTasks, type QueueEntry } from '../core/priorityQueue'
+import type { QueueEntry } from '../core/priorityQueue'
 import type { Task } from '../core/types'
+import { formatMinutes } from './format'
+import type { TaskQueue } from './useTaskQueue'
 
 interface TodayQueueProps {
-  /** 外面传来的一句话提示（比如「已加入 XXX」），显示在状态栏 */
+  queue: TaskQueue
+  /** 外面传来的一句话提示（比如「已加入 XXX」），显示在队列上方 */
   notice: string
-  /**
-   * 数据版本号。每次外部写入（比如加任务）就自增一次，用来触发重新读库。
-   *
-   * 为什么不直接依赖 notice：连着加两条同名任务时提示文案相同、state 不变，
-   * 队列不会刷新 —— 数据变了界面却不动。自增数字每次都不同，所以更可靠。
-   */
-  dataVersion: number
 }
 
-export function TodayQueue({ notice, dataVersion }: TodayQueueProps) {
-  const [tasks, setTasks] = useState<Task[]>([])
-  const [loaded, setLoaded] = useState(false)
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
+export function TodayQueue({ queue, notice }: TodayQueueProps) {
+  const { ranked, done, total, loaded, busy, error, now, act, refresh, loadSamples } = queue
 
-  // 这一次渲染用的「现在」。所有排序都基于它，保证同一屏里的分数与顺序自洽。
-  const [now, setNow] = useState(() => new Date())
-
-  /** 读库 + 重置时刻。任何写操作之后都要调它，让队列跟着数据走。 */
-  const refresh = useCallback(async () => {
-    try {
-      const list = await taskRepo.listTasks()
-      setTasks(list)
-      setNow(new Date())
-      setError('')
-    } catch (err) {
-      setError('读取失败：' + (err instanceof Error ? err.message : String(err)))
-    } finally {
-      setLoaded(true)
-    }
-  }, [])
-
-  // 首次挂载读一次；之后每次 dataVersion 变化（外部写了新数据）再读一次。
-  useEffect(() => {
-    void refresh()
-  }, [refresh, dataVersion])
-
-  // 待办任务：只排没做完的。已完成的不该占着「今天做什么」的位置。
-  const pending = useMemo(() => tasks.filter((task) => task.status !== 'done'), [tasks])
-  const done = useMemo(() => tasks.filter((task) => task.status === 'done'), [tasks])
-
-  // 算分 + 排序。now 固定，所以这次渲染里分数与顺序是同一时刻的产物。
-  const ranked = useMemo(() => rankTasks(pending, now), [pending, now])
-
-  /** 统一包一层：写操作 → 重读 → 队列自动重排 */
-  async function act(action: () => Promise<unknown>, failureNote: string) {
-    setBusy(true)
-    try {
-      await action()
-      await refresh()
-    } catch (err) {
-      setError(failureNote + '：' + (err instanceof Error ? err.message : String(err)))
-    } finally {
-      setBusy(false)
-    }
-  }
+  // 哪张卡片被点开了。只允许开一张：同时展开多张会把队列读成一堆碎片。
+  const [openId, setOpenId] = useState<string | null>(null)
 
   const handleComplete = (task: Task) =>
     act(() => taskRepo.completeTask(task.id), `完成「${task.title}」失败`)
@@ -82,80 +39,160 @@ export function TodayQueue({ notice, dataVersion }: TodayQueueProps) {
     return act(() => taskRepo.deleteTask(task.id), `删除「${task.title}」失败`)
   }
 
-  if (!loaded) {
+  // ---------- 状态一：错误 ----------
+  if (error !== '') {
     return (
       <section className="card">
         <h2>今日队列</h2>
-        <p className="status">正在读取…</p>
+        <div className="state state-error">
+          <p className="state-title">队列没读出来</p>
+          <p className="state-sub">{error}</p>
+          <button type="button" className="state-action" onClick={() => void refresh()}>
+            重试
+          </button>
+        </div>
       </section>
     )
   }
 
+  // ---------- 状态二：加载中 ----------
+  if (!loaded) {
+    return (
+      <section className="card">
+        <h2>今日队列</h2>
+        <div className="state state-loading">
+          <span className="spinner" aria-hidden="true" />
+          <p className="state-title">正在读取…</p>
+          <p className="state-sub">正在从这台设备的浏览器里读任务。</p>
+        </div>
+      </section>
+    )
+  }
+
+  // ---------- 状态三：空 ----------
+  if (ranked.length === 0) {
+    return (
+      <section className="card">
+        <h2>今日队列</h2>
+        <div className="state state-empty">
+          {total === 0 ? (
+            <>
+              <p className="state-title">队列是空的</p>
+              <p className="state-sub">
+                在上面加一条任务，它会被自动算出该排第几。想先看看效果，也可以直接载入一份示例。
+              </p>
+              <button
+                type="button"
+                className="state-action"
+                onClick={() => void loadSamples()}
+                disabled={busy}
+              >
+                载入示例数据
+              </button>
+            </>
+          ) : (
+            <>
+              <p className="state-title">待办清空了</p>
+              <p className="state-sub">已完成 {total} 件。再加一条新任务，队列会立刻重新排。</p>
+            </>
+          )}
+        </div>
+
+        {done.length > 0 && (
+          <p className="done-line">已完成：{done.map((task) => task.title).join('、')}</p>
+        )}
+      </section>
+    )
+  }
+
+  // ---------- 状态四：成功 ----------
   return (
     <section className="card">
       <h2>今日队列</h2>
 
-      {error !== '' && <p className="composer-error">{error}</p>}
+      <p className="queue-head">
+        共 <strong>{ranked.length}</strong> 件待办
+        {notice !== '' && <span className="queue-notice">· {notice}</span>}
+      </p>
 
-      {ranked.length === 0 ? (
-        // 空状态：给引导，不显示空框（PRD 第七节要求）
-        <div className="empty">
-          <p className="empty-title">队列是空的</p>
-          <p className="empty-sub">在上面加一条任务，它会被自动算出该排第几。</p>
-        </div>
-      ) : (
-        <>
-          <p className="queue-head">
-            共 <strong>{ranked.length}</strong> 件待办
-            {notice !== '' && <span className="queue-notice">· {notice}</span>}
-          </p>
+      <ol className="queue">
+        {ranked.map((entry, index) => {
+          const open = openId === entry.task.id
+          const overdue = isOverdue(entry.task, now)
 
-          <ol className="queue">
-            {ranked.map((entry, index) => (
-              <li key={entry.task.id} className={entry.priority.isUrgent ? 'is-urgent' : 'not-urgent'}>
-                <span className="queue-no">{index + 1}</span>
-
-                <div className="queue-body">
-                  <div className="queue-line">
-                    <span className="queue-title">{entry.task.title}</span>
-                    <span className="queue-score">{entry.priority.score.toFixed(1)}</span>
-                  </div>
-
-                  <p className="queue-why">
-                    {entry.priority.reasons.map((reason) => reason.text).join(' · ')}
-                  </p>
-
-                  <div className="queue-meta">
-                    {entry.task.estimateMinutes !== null && <span>{entry.task.estimateMinutes} 分钟</span>}
-                    <span>{entry.task.importance} 星</span>
-                    <span>{describeSegment(entry, now)}</span>
-                  </div>
+          return (
+            <li
+              key={entry.task.id}
+              className={[
+                'queue-card',
+                entry.priority.isUrgent ? 'is-urgent' : 'not-urgent',
+                overdue ? 'is-overdue' : '',
+                open ? 'is-open' : '',
+              ]
+                .filter(Boolean)
+                .join(' ')}
+            >
+              {/* 卡片主体可点，点开看「为什么排这里」。按钮在 .queue-actions 里，是它的兄弟节点，
+                  所以点「完成」「删除」不会顺带展开卡片。 */}
+              <div
+                className="queue-body"
+                role="button"
+                tabIndex={0}
+                aria-expanded={open}
+                onClick={() => setOpenId(open ? null : entry.task.id)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault()
+                    setOpenId(open ? null : entry.task.id)
+                  }
+                }}
+              >
+                <div className="queue-line">
+                  <span className="queue-no">{index + 1}</span>
+                  <span className="queue-title">{entry.task.title}</span>
+                  <span className="queue-score">{entry.priority.score.toFixed(1)}</span>
                 </div>
 
-                <div className="queue-actions">
-                  <button
-                    type="button"
-                    onClick={() => handleComplete(entry.task)}
-                    disabled={busy}
-                    title="标记完成"
-                  >
-                    完成
-                  </button>
-                  <button
-                    type="button"
-                    className="ghost"
-                    onClick={() => handleDelete(entry.task)}
-                    disabled={busy}
-                    title="删除"
-                  >
-                    删除
-                  </button>
+                <p className="queue-why">
+                  {entry.priority.reasons.map((reason) => reason.text).join(' · ')}
+                </p>
+
+                <div className="queue-meta">
+                  {overdue && <span className="meta-overdue">已逾期</span>}
+                  {entry.task.estimateMinutes !== null && (
+                    <span>{formatMinutes(entry.task.estimateMinutes)}</span>
+                  )}
+                  <span>{entry.task.importance} 星</span>
+                  <span>{describeSegment(entry, now)}</span>
+                  <span className="queue-hint">{open ? '收起明细 ▴' : '为什么排这里 ▾'}</span>
                 </div>
-              </li>
-            ))}
-          </ol>
-        </>
-      )}
+
+                {open && <FactorBreakdown entry={entry} />}
+              </div>
+
+              <div className="queue-actions">
+                <button
+                  type="button"
+                  onClick={() => handleComplete(entry.task)}
+                  disabled={busy}
+                  title="标记完成"
+                >
+                  完成
+                </button>
+                <button
+                  type="button"
+                  className="ghost"
+                  onClick={() => handleDelete(entry.task)}
+                  disabled={busy}
+                  title="删除"
+                >
+                  删除
+                </button>
+              </div>
+            </li>
+          )
+        })}
+      </ol>
 
       {done.length > 0 && (
         <p className="done-line">
@@ -164,6 +201,46 @@ export function TodayQueue({ notice, dataVersion }: TodayQueueProps) {
       )}
     </section>
   )
+}
+
+/**
+ * 三因子明细 —— F5「可解释排序」真正落地的地方。
+ *
+ * 光有一句理由（「还剩 9 小时 · 重要度 4 星」）只能说明**哪些项在起作用**，
+ * 说不出各项**各占多少**。这里把三个因子各自的贡献分摆出来，
+ * 分数就不再是一个黑箱数字，而是一笔能对得上的账。
+ */
+function FactorBreakdown({ entry }: { entry: QueueEntry }) {
+  const factors = entry.priority.factors
+  const rows = [factors.urgency, factors.importance, factors.quickWin]
+
+  return (
+    <div className="factors">
+      {rows.map((factor) => (
+        <div className="factor" key={factor.label}>
+          <span className="factor-label">{factor.label}</span>
+          <span className="factor-bar">
+            <span
+              className="factor-bar-fill"
+              style={{ width: `${Math.round(factor.value * 100)}%` }}
+            />
+          </span>
+          <span className="factor-points">{factor.points.toFixed(1)} 分</span>
+        </div>
+      ))}
+      <p className="factor-note">
+        总分 {entry.priority.score.toFixed(1)} = 40%×紧迫度 + 40%×重要度 + 20%×省时度
+      </p>
+    </div>
+  )
+}
+
+/** 已经过了截止时间（含正好到点） */
+function isOverdue(task: Task, now: Date): boolean {
+  if (task.dueAt === null) return false
+  const due = new Date(task.dueAt)
+  if (Number.isNaN(due.getTime())) return false
+  return due.getTime() <= now.getTime()
 }
 
 /**

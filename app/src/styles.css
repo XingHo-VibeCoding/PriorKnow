@@ -1,4 +1,9 @@
-/* 知先 PriorKnow —— 基础样式（纯 CSS，不引 UI 框架） */
+/* 知先 PriorKnow —— 基础样式（纯 CSS，不引 UI 框架）
+ *
+ * Day 8 整理过一遍：Day 5–7 那些「数据层自检」「排序预览」面板已经拆掉，
+ * 它们留下的样式（.flow / .todo / .rank-* / .task-list）也一并清了 ——
+ * 样式表里留一堆没人用的类，会让人误以为那些面板还在。
+ */
 
 :root {
   --ink: #1c1b1f;
@@ -9,6 +14,10 @@
   --line: #e4e1da;
   --accent: #c8452f;
   --accent-soft: #fbeae6;
+  --warn: #b3372a;
+  --warn-soft: #fbeae6;
+  --ok: #2f7d55;
+  --ok-soft: #eaf6ef;
 }
 
 * {
@@ -39,13 +48,14 @@ body {
 /* ---- 头部 ---- */
 
 .hero {
-  margin-bottom: 32px;
+  margin-bottom: 28px;
 }
 
 .hero-top {
   display: flex;
   align-items: baseline;
   gap: 12px;
+  flex-wrap: wrap;
 }
 
 .brand {
@@ -102,255 +112,110 @@ body {
   color: var(--ink-soft);
 }
 
-/* ---- 数据流 ---- */
+/* ---- 今日预算条 ---- */
 
-.flow {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.flow li {
+.budget-row {
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 11px 0;
-  border-bottom: 1px dashed var(--line);
-}
-
-.flow li:last-child {
-  border-bottom: none;
-}
-
-.chip {
-  flex: none;
-  width: 34px;
-  height: 34px;
-  border-radius: 10px;
-  background: var(--accent);
-  color: #fff;
-  font-size: 15px;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.flow-text {
-  display: flex;
-  flex-direction: column;
-}
-
-.flow-text strong {
-  font-size: 14px;
-}
-
-.flow-text span {
-  font-size: 13px;
-  color: var(--ink-soft);
-}
-
-/* ---- 进度清单 ---- */
-
-.todo {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.todo li {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 0;
-  font-size: 14px;
-  color: var(--ink-soft);
-}
-
-.todo li.done {
-  color: var(--ink);
-  font-weight: 600;
-}
-
-.todo .mark {
-  flex: none;
-  width: 18px;
-  text-align: center;
-  color: var(--ink-faint);
-}
-
-.todo li.done .mark {
-  color: var(--accent);
-}
-
-/* ---- 数据层自检面板 ---- */
-
-.hint {
-  margin: 0 0 16px;
-  font-size: 13px;
-  color: var(--ink-soft);
-}
-
-.hint code {
-  padding: 1px 6px;
-  border-radius: 5px;
-  background: var(--paper);
-  border: 1px solid var(--line);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 12px;
-}
-
-.hint strong {
-  color: var(--accent);
-}
-
-.btn-row {
-  display: flex;
+  justify-content: space-between;
+  gap: 12px;
   flex-wrap: wrap;
+}
+
+.budget-label {
+  font-size: 14px;
+}
+
+.budget-input-wrap {
+  display: flex;
+  align-items: center;
   gap: 8px;
 }
 
-.btn-row button {
-  padding: 8px 14px;
+.budget-input {
+  width: 104px;
+  padding: 7px 10px;
   border: 1px solid var(--line);
-  border-radius: 9px;
+  border-radius: 8px;
   background: var(--card);
   color: var(--ink);
-  font-size: 13px;
+  font-size: 14px;
   font-family: inherit;
-  cursor: pointer;
-  transition: border-color 0.15s, background 0.15s;
-}
-
-.btn-row button:hover:not(:disabled) {
-  border-color: var(--accent);
-  background: var(--accent-soft);
-}
-
-.btn-row button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.btn-row button.danger:hover:not(:disabled) {
-  border-color: #b3372a;
-  background: #fbeae6;
-}
-
-.status {
-  margin: 14px 0 0;
-  padding: 9px 12px;
-  border-radius: 9px;
-  background: var(--paper);
-  font-size: 13px;
-  color: var(--ink-soft);
-}
-
-.task-list {
-  list-style: none;
-  margin: 16px 0 0;
-  padding: 0;
-  border-top: 1px dashed var(--line);
-}
-
-.task-list li {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 10px 0;
-  border-bottom: 1px dashed var(--line);
-}
-
-.task-list li.is-done .task-title {
-  text-decoration: line-through;
-  color: var(--ink-faint);
-}
-
-.task-title {
-  font-size: 14px;
-}
-
-.task-meta {
-  font-size: 12px;
-  color: var(--ink-faint);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-}
-
-/* ---- 排序预览 ---- */
-
-.rank-list {
-  list-style: none;
-  margin: 16px 0 0;
-  padding: 0;
-  border-top: 1px dashed var(--line);
-}
-
-.rank-list li {
-  display: flex;
-  gap: 12px;
-  padding: 12px 0;
-  border-bottom: 1px dashed var(--line);
-}
-
-/* 不在前段的任务（未到期）整体压暗一点，视觉上呼应「排在后面」 */
-.rank-list li.not-urgent {
-  opacity: 0.72;
-}
-
-.rank-no {
-  flex: none;
-  width: 24px;
-  height: 24px;
-  margin-top: 2px;
-  border-radius: 7px;
-  background: var(--accent);
-  color: #fff;
-  font-size: 12px;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.rank-list li.not-urgent .rank-no {
-  background: var(--ink-faint);
-}
-
-.rank-body {
-  flex: 1;
-  min-width: 0;
-}
-
-.rank-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.rank-title {
-  font-size: 14px;
-}
-
-.rank-score {
-  flex: none;
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--accent);
   font-variant-numeric: tabular-nums;
 }
 
-.rank-reason {
-  margin: 4px 0 0;
-  font-size: 12px;
+.budget-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.budget-unit {
+  font-size: 13px;
   color: var(--ink-soft);
 }
 
-.rank-factors {
-  margin: 3px 0 0;
-  font-size: 11px;
+.budget-approx {
+  font-size: 13px;
   color: var(--ink-faint);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.budget-sum {
+  margin: 14px 0 8px;
+  font-size: 14px;
+  color: var(--ink-soft);
+}
+
+.budget-sum strong {
+  color: var(--accent);
+  font-size: 16px;
+}
+
+.budget-bar {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  overflow: hidden;
+}
+
+.budget-bar-fill {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  border-radius: 999px;
+  transition: width 0.25s ease;
+}
+
+.budget-note {
+  margin: 10px 0 0;
+  font-size: 13px;
+  color: var(--ink-faint);
+}
+
+.budget-note strong {
+  color: var(--accent);
+}
+
+.budget-warn {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--warn-soft);
+  border: 1px solid #f0cfc8;
+}
+
+.budget-warn-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--warn);
+}
+
+.budget-warn-sub {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: #8a3c30;
+  overflow-wrap: anywhere;
 }
 
 /* ---- 加任务表单 ---- */
@@ -463,8 +328,8 @@ body {
   margin: 0;
   padding: 9px 12px;
   border-radius: 9px;
-  background: #fbeae6;
-  color: #b3372a;
+  background: var(--warn-soft);
+  color: var(--warn);
   font-size: 13px;
 }
 
@@ -489,40 +354,66 @@ body {
   list-style: none;
   margin: 12px 0 0;
   padding: 0;
-  border-top: 1px dashed var(--line);
 }
 
-.queue li {
+.queue-card {
   display: flex;
   align-items: flex-start;
   gap: 12px;
-  padding: 14px 0;
-  border-bottom: 1px dashed var(--line);
+  padding: 14px 16px;
+  margin-bottom: 10px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--card);
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
 
-/* 首项（当前最该做的）单独强化 */
-.queue li:first-child {
-  background: linear-gradient(90deg, var(--accent-soft) 0%, transparent 62%);
-  border-radius: 8px;
-  padding-left: 10px;
-  padding-right: 10px;
-  margin-left: -10px;
-  margin-right: -10px;
+.queue-card:hover {
+  border-color: #d6d2c8;
 }
 
-/* 不在前段的任务（未到期 / 无期限）整体压暗，视觉上呼应「排在后面」。
+/* 排第一的那张明显突出（PRD 5.1 明确要求） */
+.queue-card:first-child {
+  border-color: #edc8bf;
+  box-shadow: 0 2px 12px rgba(200, 69, 47, 0.1);
+  background: linear-gradient(90deg, var(--accent-soft) 0%, var(--card) 68%);
+}
+
+/* 不在前段的任务（7 天以外 / 无期限）整体压暗，视觉上呼应「排在后面」。
    ⚠️ 必须排除首项：首项是「当前最该做的」，若它恰好无期限，
    压暗会与高亮背景打架，看起来像排在最后。 */
-.queue li.not-urgent:not(:first-child) {
-  opacity: 0.72;
+.queue-card.not-urgent:not(:first-child) {
+  opacity: 0.78;
+}
+
+.queue-card.is-open {
+  border-color: var(--accent);
+}
+
+.queue-body {
+  flex: 1;
+  min-width: 0;
+  cursor: pointer;
+}
+
+.queue-body:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+  border-radius: 6px;
+}
+
+.queue-line {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
 }
 
 .queue-no {
   flex: none;
-  width: 26px;
-  height: 26px;
-  margin-top: 1px;
-  border-radius: 8px;
+  align-self: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
   background: var(--accent);
   color: #fff;
   font-size: 12px;
@@ -532,24 +423,15 @@ body {
   justify-content: center;
 }
 
-.queue li.not-urgent:not(:first-child) .queue-no {
+.queue-card.not-urgent:not(:first-child) .queue-no {
   background: var(--ink-faint);
 }
 
-.queue-body {
+.queue-title {
   flex: 1;
   min-width: 0;
-}
-
-.queue-line {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.queue-title {
   font-size: 15px;
+  overflow-wrap: anywhere;
 }
 
 .queue-score {
@@ -561,19 +443,29 @@ body {
 }
 
 .queue-why {
-  margin: 5px 0 0;
+  margin: 6px 0 0;
   font-size: 13px;
   color: var(--ink-soft);
+  overflow-wrap: anywhere;
 }
 
 .queue-meta {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
-  margin-top: 5px;
+  margin-top: 6px;
   font-size: 11px;
   color: var(--ink-faint);
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.meta-overdue {
+  color: var(--warn);
+  font-weight: 700;
+}
+
+.queue-hint {
+  color: var(--accent);
 }
 
 .queue-actions {
@@ -610,26 +502,138 @@ body {
 }
 
 .queue-actions button.ghost:hover:not(:disabled) {
-  border-color: #b3372a;
-  background: #fbeae6;
-  color: #b3372a;
+  border-color: var(--warn);
+  background: var(--warn-soft);
+  color: var(--warn);
 }
 
-.empty {
-  padding: 26px 0 18px;
-  text-align: center;
+/* ---- 三因子明细（点开卡片才出现） ---- */
+
+.factors {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--line);
 }
 
-.empty-title {
-  margin: 0;
-  font-size: 15px;
+.factor {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+}
+
+.factor-label {
+  flex: none;
+  width: 48px;
   color: var(--ink-soft);
 }
 
-.empty-sub {
+.factor-bar {
+  flex: 1;
+  min-width: 0;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  overflow: hidden;
+}
+
+.factor-bar-fill {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+
+.factor-points {
+  flex: none;
+  width: 58px;
+  text-align: right;
+  color: var(--ink-faint);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.factor-note {
+  margin: 2px 0 0;
+  font-size: 11px;
+  color: var(--ink-faint);
+  overflow-wrap: anywhere;
+}
+
+/* ---- 四种状态：加载中 / 成功 / 空 / 错误 ---- */
+
+.state {
+  padding: 26px 16px;
+  text-align: center;
+  border-radius: 12px;
+}
+
+.state-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+
+.state-sub {
   margin: 6px 0 0;
   font-size: 13px;
   color: var(--ink-faint);
+  overflow-wrap: anywhere;
+}
+
+.state-action {
+  margin-top: 14px;
+  padding: 8px 16px;
+  border: 1px solid var(--accent);
+  border-radius: 9px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.state-action:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.state-loading {
+  border: 1px dashed var(--line);
+}
+
+.state-empty {
+  border: 1px dashed var(--line);
+}
+
+.state-error {
+  border: 1px solid #f0cfc8;
+  background: var(--warn-soft);
+}
+
+.state-error .state-title {
+  color: var(--warn);
+}
+
+.spinner {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  margin-bottom: 8px;
+  border: 2px solid var(--line);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .done-line {
@@ -638,6 +642,110 @@ body {
   border-top: 1px dashed var(--line);
   font-size: 12px;
   color: var(--ink-faint);
+  overflow-wrap: anywhere;
+}
+
+/* ---- 数据与设置 ---- */
+
+.hint {
+  margin: 0 0 16px;
+  font-size: 13px;
+  color: var(--ink-soft);
+  overflow-wrap: anywhere;
+}
+
+.hint strong {
+  color: var(--accent);
+}
+
+.btn-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.btn-row button {
+  padding: 8px 14px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--card);
+  color: var(--ink);
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.btn-row button:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.btn-row button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-row button.danger:hover:not(:disabled) {
+  border-color: var(--warn);
+  background: var(--warn-soft);
+  color: var(--warn);
+}
+
+.status {
+  margin: 14px 0 0;
+  padding: 9px 12px;
+  border-radius: 9px;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.status-ok {
+  background: var(--ok-soft);
+  color: var(--ok);
+}
+
+.status-bad {
+  background: var(--warn-soft);
+  color: var(--warn);
+}
+
+.dev {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px dashed var(--line);
+}
+
+.dev-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.dev-select {
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--card);
+  color: var(--ink);
+  font-size: 13px;
+  font-family: inherit;
+}
+
+.dev-select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.dev-note {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--ink-faint);
+  overflow-wrap: anywhere;
 }
 
 /* ---- 页脚 ---- */
@@ -647,4 +755,78 @@ body {
   text-align: center;
   font-size: 12px;
   color: var(--ink-faint);
+}
+
+/* ---- 窄屏 ----
+ * PRD 第八节的验收标准要求：缩窄浏览器时**不出现横向溢出**。
+ * 主要手段：竖排、把固定宽度放开、给长文本允许断行。 */
+
+@media (max-width: 640px) {
+  .page {
+    padding: 32px 16px 56px;
+  }
+
+  .brand {
+    font-size: 34px;
+    letter-spacing: 2px;
+  }
+
+  .card {
+    padding: 18px 16px;
+    border-radius: 12px;
+  }
+
+  .budget-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .budget-input-wrap {
+    justify-content: space-between;
+  }
+
+  .budget-input {
+    flex: 1;
+    width: auto;
+  }
+
+  .composer-row {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .field input[type='number'] {
+    width: 100%;
+  }
+
+  .queue-card {
+    flex-direction: column;
+    padding: 13px;
+  }
+
+  .queue-actions {
+    flex-direction: row;
+    width: 100%;
+  }
+
+  .queue-actions button {
+    flex: 1;
+  }
+
+  .factor-label {
+    width: 42px;
+  }
+
+  .factor-points {
+    width: 50px;
+  }
+
+  .dev-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .dev-select {
+    width: 100%;
+  }
 }

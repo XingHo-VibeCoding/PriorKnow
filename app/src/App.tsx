@@ -1,36 +1,39 @@
 // 知先 PriorKnow —— 界面外壳
 //
-// Day 7 走到第 4 步（最后一步）：闭环合上了。
-//   加任务 → 存进 IndexedDB → 算分 → 排队列 → 显示理由
-// 前面三步的算法与数据层到这里第一次连成一条能用的链路。
+// Day 8 进入第 2 周：主视图成型。
+//   今日预算条（今天做得完几件）→ 加任务 → 今日队列（卡片 + 解释）→ 数据与设置
+//
+// 队列的数据与写操作统一由 useTaskQueue 提供 —— 预算条、队列、数据面板
+// 三个区块共享同一份状态，不再各自读一遍库。
 
 import { useCallback, useState } from 'react'
 import { TaskComposer } from './ui/TaskComposer'
+import { TodayBudget } from './ui/TodayBudget'
 import { TodayQueue } from './ui/TodayQueue'
-
-// 数据流四环节。这是 Day 5 技术设计里定下的主干。
-const DATA_FLOW = [
-  { step: '来', layer: '界面层', what: '用户新建 / 完成一件任务' },
-  { step: '算', layer: '业务层', what: '算优先级分数，重排队列' },
-  { step: '存', layer: '数据层接口', what: '接口背后落到 IndexedDB' },
-  { step: '回', layer: '界面层', what: '读回任务，重算，渲染今日队列' },
-]
+import { DataPanel } from './ui/DataPanel'
+import { useTaskQueue, type DataMode } from './ui/useTaskQueue'
 
 export function App() {
   // 给用户看的一句话提示，例如「已加入「读一遍 PRD」，队列已重排」。
   const [notice, setNotice] = useState('')
 
-  // ⚠️ 队列靠这个数字决定「要不要重新读库」，而不是靠上面的提示文案。
-  //
-  // 为什么不用 notice 当信号：连着加两条同名任务时，提示文案一模一样、
-  // state 不变，队列就不会刷新 —— 数据明明变了，界面却不动。
-  // 自增数字每次都不同，所以任何一次写入都能触发重读。
-  const [dataVersion, setDataVersion] = useState(0)
+  // 数据层的演示模式：正常 / 慢速 / 失败。
+  // 平时是「正常」；切成慢速或失败，是为了让「加载中」和「错误」两种状态能被看见 ——
+  // 本地库读一次只要几毫秒，这两种状态否则永远没人见过。
+  const [dataMode, setDataMode] = useState<DataMode>('normal')
 
-  const handleCreated = useCallback((note: string) => {
-    setNotice(note)
-    setDataVersion((version) => version + 1)
-  }, [])
+  const queue = useTaskQueue(dataMode)
+  const { refresh } = queue
+
+  // 加任务成功后：给一句提示 + 让队列重读。
+  // 这次重读就是「自动重排」的触发点 —— 用户全程不需要点任何「排序」按钮。
+  const handleCreated = useCallback(
+    (note: string) => {
+      setNotice(note)
+      void refresh()
+    },
+    [refresh],
+  )
 
   return (
     <div className="page">
@@ -40,33 +43,20 @@ export function App() {
           <span className="brand-en">PriorKnow</span>
         </div>
         <p className="tagline">下一步做什么，让队列告诉你。</p>
-        <p className="sub">
-          把一堆散乱的任务丢进来，它算出先做哪件，并告诉你为什么。
-        </p>
-        <div className="badge">Day 7 · 第 4 步 · 今日队列已闭环</div>
+        <p className="sub">把一堆散乱的任务丢进来，它算出先做哪件，并告诉你为什么。</p>
+        <div className="badge">Day 8 · 主视图 · 四种状态齐备</div>
       </header>
 
-      <section className="card">
-        <h2>数据怎么走</h2>
-        <ul className="flow">
-          {DATA_FLOW.map((item) => (
-            <li key={item.step}>
-              <span className="chip">{item.step}</span>
-              <div className="flow-text">
-                <strong>{item.layer}</strong>
-                <span>{item.what}</span>
-              </div>
-            </li>
-          ))}
-        </ul>
-      </section>
+      <TodayBudget ranked={queue.ranked} loaded={queue.loaded} />
 
       <section className="card">
         <h2>加任务</h2>
         <TaskComposer onCreated={handleCreated} />
       </section>
 
-      <TodayQueue notice={notice} dataVersion={dataVersion} />
+      <TodayQueue queue={queue} notice={notice} />
+
+      <DataPanel queue={queue} dataMode={dataMode} onDataModeChange={setDataMode} />
 
       <footer className="foot">知先 PriorKnow · Next Action Scheduler</footer>
     </div>
