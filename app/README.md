@@ -84,7 +84,7 @@ app/
 加任务 → 存进 IndexedDB → 算分 → 排队列 → 显示「为什么是它」
 ```
 
-**Day 8 起进入第 2 周（前端补全）**，主视图成型：
+**Day 8 已完成并提交**，第 2 周（前端补全）开始，主视图成型：
 
 - **今日预算条**（F6）—— 填今天剩多少时间，算出「按队列顺序今天做得完几件」；
 - **今日队列卡片化**，点卡片展开三因子明细（F3 / F5）；
@@ -99,11 +99,12 @@ PRD 第三节的 MVP 里还没做的：F4 重排动画、F7 专注模式、5.2 �
 
 ## 踩过的坑
 
-**代码在 WSL 里、用 Windows 侧 Node 跑的时候**，WSL 的网络盘（`\\wsl.localhost\...`）有两个限制：
+项目现在在 **Windows 原生路径 `D:\Custom_Programs\MYAPP\PriorKnow`** 上，下面这两条早先的坑
+**都不存在了**。留档是因为换机器或换目录时可能再遇到：
 
-1. Vite 8 的原生解析器读不了 `\\wsl.localhost\` 这种 UNC 路径，会报
+1. **Vite 8 的原生解析器读不了 UNC 路径**（`\\wsl.localhost\...`），会报
    `Failed to resolve entry for package "vite"`。
-   → 先把 WSL 映射成盘符再跑：
+   当时的绕法是把 WSL 映射成盘符再跑：
 
    ```powershell
    net use P: \\wsl.localhost\Ubuntu-26.04
@@ -111,17 +112,12 @@ PRD 第三节的 MVP 里还没做的：F4 重排动画、F7 专注模式、5.2 �
    npm run dev
    ```
 
-2. 这类网络盘不支持 Node 的系统级文件变化监听，会报
+   → 现在直接 `cd D:\Custom_Programs\MYAPP\PriorKnow\app` 即可，不用映射。
+
+2. **网络盘不支持 Node 的文件变化监听**，会报
    `EISDIR: illegal operation on a directory, watch 'vite.config.ts'`。
-   → 已在 `vite.config.ts` 里打开轮询监听（`server.watch.usePolling`），无需另外处理。
+   当时在 `vite.config.ts` 里打开了轮询监听（`server.watch.usePolling`）。
+   → 原生磁盘上**已非必需**，留着只是多一点开销，想删可以删。
 
-   ```ts
-   server: {
-     watch: { usePolling: true, interval: 400 },
-   }
-   ```
-
-代价是改完代码到页面刷新会慢一点点，对这个项目无所谓。
-
-另外，依赖是用 **Windows 侧 Node** 装的，`node_modules` 里有平台相关的原生二进制，
-所以**不要改到 WSL 的 Linux 里跑**，否则会装不上/跑不起来。
+另外，依赖是用 **Windows 侧 Node** 装的，`node_modules` 里有平台相关的原生二进制
+（`@rolldown/binding-win32-x64-msvc`），所以**不要在 WSL 的 Linux 里跑** —— 会模块解析失败。
