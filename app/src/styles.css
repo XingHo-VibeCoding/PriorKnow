@@ -8,16 +8,28 @@
 :root {
   --ink: #1c1b1f;
   --ink-soft: #5c5a63;
-  --ink-faint: #8e8b95;
+  /* Day 9 修复①：原来 #8e8b95 对白卡片只有 3.35:1、对页面底色 3.07:1，
+     都低于 WCAG AA 正文要求的 4.5:1 —— 而它还用在了 12 / 13px 的小字上。
+     换成 #6b6875 后：白卡片 5.44:1、页面底色 4.99:1，两处都达标。
+     （对比度是用 WCAG 相对亮度公式算的，不是目测。） */
+  --ink-faint: #6b6875;
   --paper: #f6f5f2;
   --card: #ffffff;
   --line: #e4e1da;
   --accent: #c8452f;
   --accent-soft: #fbeae6;
+  /* Day 9 修复⑥：悬停用的深一档强调色。
+     主按钮是白字铺在 --accent 上，悬停时底色加深一档，给出明确反馈；
+     白字在 #b03a26 上仍有 6.04:1，比原来还清晰。 */
+  --accent-dark: #b03a26;
   --warn: #b3372a;
   --warn-soft: #fbeae6;
   --ok: #2f7d55;
   --ok-soft: #eaf6ef;
+  /* Day 9 修复②：未选中星级的描边色。原来的 #e4e1da 对白底只有 1.31:1，
+     几乎看不见，用户不知道这里还能点几星。#8b8170 对白底 3.84:1，
+     满足「非文字 UI 元素 ≥ 3:1」。 */
+  --star-idle: #8b8170;
 }
 
 * {
@@ -58,7 +70,11 @@ body {
   flex-wrap: wrap;
 }
 
+/* Day 9 修复⑦：「知先」从 span 改成 h1（补回页面主标题的语义）。
+   h1 浏览器默认带 0.67em 的上下外边距，会把头部撑开 ——
+   这里归零，保证视觉和改之前一模一样，只改语义。 */
 .brand {
+  margin: 0;
   font-size: 44px;
   font-weight: 700;
   letter-spacing: 4px;
@@ -90,7 +106,8 @@ body {
   border-radius: 999px;
   background: var(--accent-soft);
   color: var(--accent);
-  font-size: 13px;
+  /* Day 9 修复④：13px → 14px */
+  font-size: 14px;
   font-weight: 600;
 }
 
@@ -104,9 +121,12 @@ body {
   margin-bottom: 18px;
 }
 
+/* Day 9 修复③：区块标题从 15px 提到 18px。
+   设计规则要求「正文 14px，区块标题 18px 以上」——
+   15px 标题和 15px 正文一样大，扫视时找不出区块边界。 */
 .card h2 {
   margin: 0 0 16px;
-  font-size: 15px;
+  font-size: 18px;
   font-weight: 700;
   letter-spacing: 1px;
   color: var(--ink-soft);
@@ -150,12 +170,14 @@ body {
 }
 
 .budget-unit {
-  font-size: 13px;
+  /* Day 9 修复④：13px → 14px（「分钟」紧跟在数字后，和数字同号更整齐） */
+  font-size: 14px;
   color: var(--ink-soft);
 }
 
 .budget-approx {
-  font-size: 13px;
+  /* Day 9 修复④：13px → 14px */
+  font-size: 14px;
   color: var(--ink-faint);
 }
 
@@ -188,7 +210,8 @@ body {
 
 .budget-note {
   margin: 10px 0 0;
-  font-size: 13px;
+  /* Day 9 修复④：13px → 14px（这是一句解释，属于正文） */
+  font-size: 14px;
   color: var(--ink-faint);
 }
 
@@ -213,7 +236,8 @@ body {
 
 .budget-warn-sub {
   margin: 6px 0 0;
-  font-size: 13px;
+  /* Day 9 修复④：13px → 14px */
+  font-size: 14px;
   color: #8a3c30;
   overflow-wrap: anywhere;
 }
@@ -252,7 +276,9 @@ body {
   display: flex;
   flex-direction: column;
   gap: 5px;
-  font-size: 12px;
+  /* Day 9 修复④：12px → 13px。这是「截止时间」这类表单标签 ——
+     属于元信息，13px 是它的底线；但 12px 已低于可读区间。 */
+  font-size: 13px;
   color: var(--ink-soft);
 }
 
@@ -262,7 +288,8 @@ body {
   border-radius: 8px;
   background: var(--card);
   color: var(--ink);
-  font-size: 13px;
+  /* Day 9 修复④：13px → 14px（输入的内容是正文，和阅读区同号） */
+  font-size: 14px;
   font-family: inherit;
 }
 
@@ -282,18 +309,41 @@ body {
   align-items: center;
 }
 
+/* Day 9 修复②：未选中的星用「空心 ☆」+ --star-idle 描边色。
+   原来是实心 ★ 配 #e4e1da（对白底 1.31:1，等于看不见）。 */
 .star {
   padding: 0 2px;
   border: none;
   background: none;
-  color: var(--line);
-  font-size: 18px;
+  color: var(--star-idle);
+  font-size: 20px;
   line-height: 1;
   cursor: pointer;
+  transition: color 0.15s, transform 0.15s;
+}
+
+/* Day 9 修复⑥：星级原来完全没有悬停反馈。
+   悬停时用深一档的描边色 + 轻微放大，明确「这个能点」。 */
+.star:hover:not(:disabled) {
+  color: #6b6250;
+  transform: scale(1.12);
+}
+
+/* 禁用态与表单其它控件保持一致（修复⑥要求按钮有三态） */
+.star:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
 }
 
 .star.on {
-  color: #e0a020;
+  /* Day 9 修复②附加：选中星原来 #e0a020 对白底只有 2.28:1（低于 3:1）。
+     #b07d00 提到 3.63:1，仍是金色，但看得清了。 */
+  color: #b07d00;
+}
+
+.star.on:hover:not(:disabled) {
+  color: #96690a;
 }
 
 .composer-foot {
@@ -312,6 +362,14 @@ body {
   font-weight: 600;
   font-family: inherit;
   cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+/* Day 9 修复⑥：主按钮原来只有「禁用」态，悬停时毫无变化 ——
+   鼠标移上去不知道点没点中。补上悬停加深。 */
+.composer-foot button.primary:hover:not(:disabled) {
+  background: var(--accent-dark);
+  border-color: var(--accent-dark);
 }
 
 .composer-foot button.primary:disabled {
@@ -320,7 +378,9 @@ body {
 }
 
 .composer-note {
-  font-size: 12px;
+  /* Day 9 修复④：12px → 14px。这是「优先级由系统算，不用你标」——
+     本项目的核心卖点之一，不该是全页最小的字。 */
+  font-size: 14px;
   color: var(--ink-faint);
 }
 
@@ -330,14 +390,16 @@ body {
   border-radius: 9px;
   background: var(--warn-soft);
   color: var(--warn);
-  font-size: 13px;
+  /* Day 9 修复④：13px → 14px（报错信息更要看清） */
+  font-size: 14px;
 }
 
 /* ---- 今日队列 ---- */
 
 .queue-head {
   margin: 0 0 4px;
-  font-size: 13px;
+  /* Day 9 修复④：13px → 14px（「今日队列 · 共 N 件」是正文） */
+  font-size: 14px;
   color: var(--ink-soft);
 }
 
@@ -356,12 +418,16 @@ body {
   padding: 0;
 }
 
+/* Day 9 修复⑤：内边距 14px → 16px、卡片间距 10px → 12px。
+   设计规则写的是「卡片内边距 16px，卡片间距 12px」。
+   原来 10px 间距小于 16px 内边距，卡片之间比卡片内部还挤 ——
+   分不清「这是一张卡片的内部」还是「这是两张卡片」，分组感就没了。 */
 .queue-card {
   display: flex;
   align-items: flex-start;
   gap: 12px;
-  padding: 14px 16px;
-  margin-bottom: 10px;
+  padding: 16px;
+  margin-bottom: 12px;
   border: 1px solid var(--line);
   border-radius: 12px;
   background: var(--card);
@@ -416,7 +482,9 @@ body {
   border-radius: 7px;
   background: var(--accent);
   color: #fff;
-  font-size: 12px;
+  /* Day 9 修复④：12px → 13px。序号是「元信息」不是正文，
+     但它在一个 24px 的圆角方块里，13px 已经是能放下且看得清的极限。 */
+  font-size: 13px;
   font-weight: 600;
   display: flex;
   align-items: center;
@@ -442,9 +510,11 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+/* Day 9 修复④：这里是「一句话解释为什么排前面」，是最该读清的内容，
+   13px → 14px，对齐设计规则的正文底线。 */
 .queue-why {
   margin: 6px 0 0;
-  font-size: 13px;
+  font-size: 14px;
   color: var(--ink-soft);
   overflow-wrap: anywhere;
 }
@@ -454,7 +524,9 @@ body {
   flex-wrap: wrap;
   gap: 10px;
   margin-top: 6px;
-  font-size: 11px;
+  /* Day 9 修复④：11px → 13px。11px 在任何屏幕上都不是「正文」，
+     连元信息都算不上 —— 它是装饰。统一提到 13px 这条元信息底线。 */
+  font-size: 13px;
   color: var(--ink-faint);
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
@@ -481,7 +553,8 @@ body {
   border-radius: 8px;
   background: var(--card);
   color: var(--ink);
-  font-size: 12px;
+  /* Day 9 修复④：12px → 13px（完成/删除 按钮，属于操作元信息） */
+  font-size: 13px;
   font-family: inherit;
   cursor: pointer;
   transition: border-color 0.15s, background 0.15s;
@@ -522,7 +595,8 @@ body {
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 12px;
+  /* Day 9 修复④：12px → 13px（三因子明细的标签与数值） */
+  font-size: 13px;
 }
 
 .factor-label {
@@ -557,7 +631,8 @@ body {
 
 .factor-note {
   margin: 2px 0 0;
-  font-size: 11px;
+  /* Day 9 修复④：11px → 13px */
+  font-size: 13px;
   color: var(--ink-faint);
   overflow-wrap: anywhere;
 }
@@ -579,7 +654,8 @@ body {
 
 .state-sub {
   margin: 6px 0 0;
-  font-size: 13px;
+  /* Day 9 修复④：13px → 14px */
+  font-size: 14px;
   color: var(--ink-faint);
   overflow-wrap: anywhere;
 }
@@ -591,10 +667,18 @@ body {
   border-radius: 9px;
   background: var(--accent);
   color: #fff;
-  font-size: 13px;
+  /* Day 9 修复④：13px → 14px（「重试」「载入示例」是按钮正文） */
+  font-size: 14px;
   font-weight: 600;
   font-family: inherit;
   cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+/* Day 9 修复⑥：错误态的「重试」按钮同样缺悬停反馈 */
+.state-action:hover:not(:disabled) {
+  background: var(--accent-dark);
+  border-color: var(--accent-dark);
 }
 
 .state-action:disabled {
@@ -640,7 +724,8 @@ body {
   margin: 14px 0 0;
   padding-top: 12px;
   border-top: 1px dashed var(--line);
-  font-size: 12px;
+  /* Day 9 修复④：12px → 13px（「已完成：…」总结行） */
+  font-size: 13px;
   color: var(--ink-faint);
   overflow-wrap: anywhere;
 }
@@ -649,7 +734,8 @@ body {
 
 .hint {
   margin: 0 0 16px;
-  font-size: 13px;
+  /* Day 9 修复④：13px → 14px（这是一段要向用户说清的话） */
+  font-size: 14px;
   color: var(--ink-soft);
   overflow-wrap: anywhere;
 }
@@ -670,7 +756,8 @@ body {
   border-radius: 9px;
   background: var(--card);
   color: var(--ink);
-  font-size: 13px;
+  /* Day 9 修复④：13px → 14px（按钮上的字就是正文） */
+  font-size: 14px;
   font-family: inherit;
   cursor: pointer;
   transition: border-color 0.15s, background 0.15s;
@@ -696,7 +783,8 @@ body {
   margin: 14px 0 0;
   padding: 9px 12px;
   border-radius: 9px;
-  font-size: 13px;
+  /* Day 9 修复④：13px → 14px（导出/导入的结果提示，要看清） */
+  font-size: 14px;
   overflow-wrap: anywhere;
 }
 
@@ -722,7 +810,8 @@ body {
   justify-content: space-between;
   gap: 12px;
   flex-wrap: wrap;
-  font-size: 13px;
+  /* Day 9 修复④：13px → 14px */
+  font-size: 14px;
   color: var(--ink-soft);
 }
 
@@ -732,7 +821,8 @@ body {
   border-radius: 8px;
   background: var(--card);
   color: var(--ink);
-  font-size: 13px;
+  /* Day 9 修复④：13px → 14px */
+  font-size: 14px;
   font-family: inherit;
 }
 
@@ -743,7 +833,8 @@ body {
 
 .dev-note {
   margin: 8px 0 0;
-  font-size: 12px;
+  /* Day 9 修复④：12px → 13px（开发说明，可读性下限） */
+  font-size: 13px;
   color: var(--ink-faint);
   overflow-wrap: anywhere;
 }
@@ -753,7 +844,8 @@ body {
 .foot {
   margin-top: 28px;
   text-align: center;
-  font-size: 12px;
+  /* Day 9 修复④：12px → 13px（元信息下限） */
+  font-size: 13px;
   color: var(--ink-faint);
 }
 

@@ -39,7 +39,12 @@ export function App() {
     <div className="page">
       <header className="hero">
         <div className="hero-top">
-          <span className="brand">知先</span>
+          {/* Day 9 修复⑦：原来整页一个 h1 都没有，「知先」只是个 span。
+              设计规则要求「每个页面只有一个主标题」—— 语义上缺了主标题，
+              读屏软件和搜索引擎都不知道这一页在讲什么。
+              改成 h1 后视觉完全不变（.brand 的 44px 字号照旧），
+              只是把「这是主标题」这件事补回去。 */}
+          <h1 className="brand">知先</h1>
           <span className="brand-en">PriorKnow</span>
         </div>
         <p className="tagline">下一步做什么，让队列告诉你。</p>

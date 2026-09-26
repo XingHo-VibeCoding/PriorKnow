@@ -106,18 +106,26 @@ export function TaskComposer({ onCreated }: TaskComposerProps) {
         <div className="field">
           <span>重要度</span>
           <div className="stars">
-            {STARS.map((star) => (
-              <button
-                key={star}
-                type="button"
-                className={star <= importance ? 'star on' : 'star'}
-                onClick={() => setImportance(star)}
-                disabled={busy}
-                aria-label={`${star} 星`}
-              >
-                ★
-              </button>
-            ))}
+            {STARS.map((star) => {
+              const on = star <= importance
+              return (
+                <button
+                  key={star}
+                  type="button"
+                  className={on ? 'star on' : 'star'}
+                  onClick={() => setImportance(star)}
+                  disabled={busy}
+                  aria-label={`${star} 星`}
+                  aria-pressed={on}
+                >
+                  {/* Day 9 修复②：选中「实心 ★」、未选中「空心 ☆」。
+                      原来两者都是 ★，只靠颜色深浅区分，而未选中的灰
+                      对白底只有 1.31:1（几乎看不见）。现在「形状 + 颜色」
+                      双重区分 —— 色障用户也能一眼看出点了几星。 */}
+                  {on ? '★' : '☆'}
+                </button>
+              )
+            })}
           </div>
         </div>
       </div>
