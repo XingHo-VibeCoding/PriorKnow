@@ -893,6 +893,15 @@ body {
 
   .queue-card {
     flex-direction: column;
+    /* Day 10 修复：竖排后必须显式 stretch，否则分数会左右乱飘。
+       原来只改了 flex-direction，没同步改 align-items（仍是默认 flex-start）。
+       桌面下横向是主轴，.queue-body 的 flex:1 能撑满，7 张卡的分数右边缘齐平；
+       方向一转，横向成了交叉轴，flex-start 就让 .queue-body **按内容宽度收缩** ——
+       标题越短的卡片，主体越窄，右端的分数越往左缩。
+       实测 375px 下 7 个分数的右边缘极差达 92.4px（328 一直排到 235.6），
+       分成两拨，看着像两组不相干的东西。
+       补上 stretch 后极差归零，且不影响桌面（≥641px 无此规则）。 */
+    align-items: stretch;
     padding: 13px;
   }
 
