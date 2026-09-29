@@ -456,6 +456,16 @@ body {
   border-color: var(--accent);
 }
 
+/* 「处理中」的那张卡（Day 11）：左边压一道绿色竖条，让用户一眼认出自己点的是哪一件。
+   ⚠️ 刻意**不改背景色、也不加 opacity** ——
+   卡片里还有 .queue-hint 这类强调色小字，换底色会重新压低它们的对比度。
+   Day 10 就栽在 opacity 上：一层 0.78 把刚修好的文字对比度又拉回 4.5:1 以下。
+   用 inset 阴影而不是 border-left 加粗，是为了不引起 1px 的布局位移。 */
+.queue-card.is-pending {
+  border-color: var(--ok);
+  box-shadow: inset 3px 0 0 var(--ok), 0 2px 12px rgb(47 125 85 / 12%);
+}
+
 .queue-body {
   flex: 1;
   min-width: 0;
@@ -849,6 +859,144 @@ body {
   color: var(--ink-faint);
 }
 
+/* ---- 操作反馈提示条（Day 11） ----
+ * 定位用 fixed 贴视口底部居中，不放文档流里。两个理由：
+ *   ① 用户点的是队列里的卡片，反馈要落在他视线附近；
+ *   ② 队列可能长到视口之外 —— 点第一张卡时，写在页面底部的提示根本看不见。
+ * 固定底部 + 居中，从哪一张点下去都能立刻看见。
+ *
+ * 颜色沿用 :root 里既有的语义色（和 .status-ok / .status-bad 同一套），
+ * 不新造颜色。对比度都是算过的：
+ *   --ink  #1c1b1f 在 --ok-soft   #eaf6ef 上 = 15.45:1
+ *   --warn #b3372a 在 --warn-soft #fbeae6 上 =  5.15:1
+ * 两者都过 WCAG AA 正文线（4.5:1）。 */
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 20px;
+  transform: translateX(-50%);
+  z-index: 20;
+
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  /* 宽度跟着内容走，但绝不超出视口 —— 否则窄屏下会被撑出横向滚动 */
+  width: max-content;
+  max-width: calc(100vw - 32px);
+
+  padding: 10px 10px 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: var(--card);
+  color: var(--ink);
+  /* 浮层要真的「浮」起来：不投影的话，浅色条贴在浅灰底上分不出层次 */
+  box-shadow: 0 8px 24px rgb(28 27 31 / 14%);
+  /* Day 9 修复④ 的规矩：完整句子用 14px */
+  font-size: 14px;
+
+  /* 进场动效：从下方滑入 + 淡入。课程要求的「可感知反馈」有它一份 */
+  animation: toast-in 0.22s ease-out;
+}
+
+/* ⚠️ keyframes 里的 transform 必须把 translateX(-50%) 一起写上 ——
+   否则动画期间会覆盖掉定位用的那个 -50%，提示条会「跳」到偏右的位置。 */
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 14px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+/* 成功与「已撤销」：绿边 + 浅绿底，图标取绿，文字保持深色（读起来最清楚） */
+.toast-done,
+.toast-undone {
+  border-color: var(--ok);
+  background: var(--ok-soft);
+}
+
+.toast-done .toast-icon,
+.toast-undone .toast-icon {
+  color: var(--ok);
+}
+
+/* 失败：红边 + 浅红底，连文字也取红 —— 出问题这件事本身要一眼看出来 */
+.toast-failed {
+  border-color: var(--warn);
+  background: var(--warn-soft);
+  color: var(--warn);
+}
+
+.toast-icon {
+  flex: none;
+  display: flex;
+  align-items: center;
+}
+
+.toast-text {
+  margin: 0;
+  /* 任务名可能很长，允许从任意位置断行，别撑破提示条 */
+  overflow-wrap: anywhere;
+}
+
+/* 提示条上的动作按钮。样式跟 .queue-actions button 保持一致，
+   不另起一套观感。 */
+.toast-action {
+  flex: none;
+  padding: 5px 12px;
+  border: 1px solid var(--ink-faint);
+  border-radius: 8px;
+  background: var(--card);
+  color: var(--ink);
+  font-size: 14px;
+  font-family: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.toast-action:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.toast-action:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.toast-close {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink-faint);
+  font-size: 17px;
+  line-height: 1;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.toast-close:hover {
+  background: var(--line);
+  color: var(--ink);
+}
+
+/* 系统里开了「减少动态效果」就不滑入，直接出现。
+   动效是锦上添花，不该让对动效敏感的人难受。 */
+@media (prefers-reduced-motion: reduce) {
+  .toast {
+    animation: none;
+  }
+}
+
 /* ---- 窄屏 ----
  * PRD 第八节的验收标准要求：缩窄浏览器时**不出现横向溢出**。
  * 主要手段：竖排、把固定宽度放开、给长文本允许断行。 */
@@ -929,5 +1077,17 @@ body {
 
   .dev-select {
     width: 100%;
+  }
+
+  /* 提示条：图标 + 文案 + 按钮 + 关闭四样东西挤在 375px 上会不够宽，
+     允许换行；文案给一个 140px 的下限，短了就撑开、长了在自己这一格里折行。 */
+  .toast {
+    flex-wrap: wrap;
+    gap: 8px 10px;
+  }
+
+  .toast-text {
+    flex: 1 1 140px;
+    min-width: 0;
   }
 }

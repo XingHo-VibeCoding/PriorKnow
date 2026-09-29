@@ -8,6 +8,11 @@
 //   · 点开解释 —— 点卡片展开三因子明细，让人看清分数是怎么来的（F5）；
 //   · 四种状态 —— 加载中 / 成功 / 空 / 错误，四种都有对应的界面，不留白屏。
 //
+// Day 11 补的是「点了之后有回应」：
+//   · 「完成」按钮有了处理中态（只变被点的那一张卡，不是全部一起变）；
+//   · 写完不再是卡片默默消失，而是浮出一条带任务名的提示条，5 秒内可以撤销。
+//   提示条本身不在这个文件里（见 ActionToast）—— 因为它得活过队列被清空的那一刻。
+//
 // ⚠️ 这个文件不碰 IndexedDB，只认 data/ 出口的接口；算分全走 core/。
 //   读库与写操作都从 useTaskQueue 来 —— 预算条和数据面板用的是同一份状态。
 
@@ -25,13 +30,16 @@ interface TodayQueueProps {
 }
 
 export function TodayQueue({ queue, notice }: TodayQueueProps) {
-  const { ranked, done, total, loaded, busy, error, now, act, refresh, loadSamples } = queue
+  const { ranked, done, total, loaded, busy, busyTaskId, error, now, act, refresh, loadSamples, completeTask } =
+    queue
 
   // 哪张卡片被点开了。只允许开一张：同时展开多张会把队列读成一堆碎片。
   const [openId, setOpenId] = useState<string | null>(null)
 
-  const handleComplete = (task: Task) =>
-    act(() => taskRepo.completeTask(task.id), `完成「${task.title}」失败`)
+  // Day 11：完成不再直接写库，而是走 useTaskQueue 里的 completeTask ——
+  // 它写完之后会浮出一条可撤销的提示条（见 ActionToast）。
+  // 这里的返回值刻意不用：成功和失败都已经由提示条说清楚了。
+  const handleComplete = (task: Task) => void completeTask(task.id, task.title)
 
   // 删除不可撤销（首版没有回收站），所以先确认一下再动手。
   const handleDelete = (task: Task) => {
@@ -119,6 +127,9 @@ export function TodayQueue({ queue, notice }: TodayQueueProps) {
         {ranked.map((entry, index) => {
           const open = openId === entry.task.id
           const overdue = isOverdue(entry.task, now)
+          // Day 11：「处理中」只给被点的那一张卡。用全局 busy 会让所有卡片一起变，
+          // 用户反而看不出自己点的是哪一件。
+          const pending = busyTaskId === entry.task.id
 
           return (
             <li
@@ -128,6 +139,7 @@ export function TodayQueue({ queue, notice }: TodayQueueProps) {
                 entry.priority.isUrgent ? 'is-urgent' : 'not-urgent',
                 overdue ? 'is-overdue' : '',
                 open ? 'is-open' : '',
+                pending ? 'is-pending' : '',
               ]
                 .filter(Boolean)
                 .join(' ')}
@@ -173,11 +185,12 @@ export function TodayQueue({ queue, notice }: TodayQueueProps) {
               <div className="queue-actions">
                 <button
                   type="button"
+                  className="queue-done"
                   onClick={() => handleComplete(entry.task)}
                   disabled={busy}
-                  title="标记完成"
+                  title={pending ? '正在标记完成…' : '标记完成'}
                 >
-                  完成
+                  {pending ? '处理中…' : '完成'}
                 </button>
                 <button
                   type="button"

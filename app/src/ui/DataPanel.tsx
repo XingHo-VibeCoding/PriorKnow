@@ -8,6 +8,10 @@
 //             校验交给数据层的 importAll（它在动库之前逐条验完），
 //             这里只负责把「文件根本不是 JSON」这类**连校验都进不去**的情况挡在门外。
 //   · 载入示例 —— 也是覆盖，但数据由我们自己造，不会格式错，所以重点是确认。
+//
+// Day 11 起「数据层状态」这个开发开关有四种：正常 / 慢速 / 读取失败 / 写入失败。
+// 多出来的最后一种是为了让「完成失败」的提示条能被真的演出来 ——
+// 本地库几乎不会写失败，不主动造一个，那条分支就永远没人见过。
 
 import { useRef, useState, type ChangeEvent } from 'react'
 import { taskRepo } from '../data'
@@ -147,13 +151,15 @@ export function DataPanel({ queue, dataMode, onDataModeChange }: DataPanelProps)
             onChange={(event) => onDataModeChange(event.target.value as DataMode)}
           >
             <option value="normal">正常</option>
-            <option value="slow">模拟慢速读取 —— 看「加载中」</option>
+            <option value="slow">模拟慢速 —— 看「加载中」和「处理中」</option>
             <option value="fail">模拟读取失败 —— 看「错误」</option>
+            <option value="writeFail">模拟写入失败 —— 看失败提示条</option>
           </select>
         </label>
         <p className="dev-note">
-          本地数据库读一次只要几毫秒，「加载中」和「错误」平时根本看不见。
-          这个开关把这两种状态主动演出来，好确认它们真的存在、也真的能用。
+          本地数据库读一次只要几毫秒、也几乎不会写失败，这些状态平时根本看不见。
+          这个开关把它们主动演出来，好确认它们真的存在、也真的能用。
+          「慢速」连写入一起放慢 —— 否则「处理中…」只闪几毫秒，写了等于没做。
         </p>
       </div>
     </section>

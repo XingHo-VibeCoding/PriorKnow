@@ -5,12 +5,17 @@
 //
 // 队列的数据与写操作统一由 useTaskQueue 提供 —— 预算条、队列、数据面板
 // 三个区块共享同一份状态，不再各自读一遍库。
+//
+// Day 11：提示条挂在这一层，而不是挂进队列里。
+// 原因见 ActionToast 的注释 —— 简单说，点掉最后一件任务时队列会整块换成空状态，
+// 提示条跟着一起卸载的话，用户就丢了唯一的撤销机会。
 
 import { useCallback, useState } from 'react'
 import { TaskComposer } from './ui/TaskComposer'
 import { TodayBudget } from './ui/TodayBudget'
 import { TodayQueue } from './ui/TodayQueue'
 import { DataPanel } from './ui/DataPanel'
+import { ActionToast } from './ui/ActionToast'
 import { useTaskQueue, type DataMode } from './ui/useTaskQueue'
 
 export function App() {
@@ -62,6 +67,15 @@ export function App() {
       <TodayQueue queue={queue} notice={notice} />
 
       <DataPanel queue={queue} dataMode={dataMode} onDataModeChange={setDataMode} />
+
+      {/* 操作反馈提示条。平时不占位（feedback 为 null 时整块不渲染）。 */}
+      <ActionToast
+        feedback={queue.feedback}
+        busy={queue.busy}
+        onUndo={queue.undoComplete}
+        onRetry={queue.retryFeedback}
+        onDismiss={queue.dismissFeedback}
+      />
 
       <footer className="foot">知先 PriorKnow · Next Action Scheduler</footer>
     </div>
