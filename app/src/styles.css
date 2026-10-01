@@ -30,6 +30,11 @@
      几乎看不见，用户不知道这里还能点几星。#8b8170 对白底 3.84:1，
      满足「非文字 UI 元素 ≥ 3:1」。 */
   --star-idle: #8b8170;
+  /* Day 12：筛选输入框 / 下拉的描边色。
+     沿用 --line (#e4e1da) 时对白卡片只有 1.31:1，看不出输入区的边界
+     （和 Day 9 星级描边是同一类问题）。#8b8170 对白卡片 3.84:1，
+     满足「非文字 UI 元素 ≥ 3:1」。 */
+  --field-line: #8b8170;
 }
 
 * {
@@ -395,6 +400,85 @@ body {
 }
 
 /* ---- 今日队列 ---- */
+
+/* ---- 筛选条（Day 12）----
+ * 三个条件：关键词 / 紧急度 / 星级，默认排成一行，窄屏改为每项一行。
+ * 字号一律 13px 起（元信息下限），输入框与下拉沿用卡片的白底与描边。
+ * 「清除筛选」的文字用 --accent-dark 而不是 --accent：
+ *   --accent 铺在 --accent-soft 上只有 4.14:1，低于 13px 正文要求的 4.5:1；
+ *   换 --accent-dark 后是 5.18:1（悬停加深底色后仍有 4.64:1）。 */
+
+.queue-filter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  margin: 12px 0 10px;
+}
+
+.filter-field {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.filter-label {
+  flex: none;
+}
+
+.filter-input,
+.filter-select {
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--ink);
+  padding: 6px 9px;
+  border: 1px solid var(--field-line);
+  border-radius: 8px;
+  background: var(--card);
+}
+
+.filter-input {
+  width: 148px;
+}
+
+.filter-input::placeholder {
+  color: var(--ink-faint);
+}
+
+.filter-input:focus-visible,
+.filter-select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.filter-clear {
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--accent-dark);
+  padding: 6px 12px;
+  /* 描边用 --accent：对浅红底 4.14:1，按钮边界看得清（原 #edc8bf 太浅）。 */
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  background: var(--accent-soft);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.filter-clear:hover {
+  background: #f7dcd5;
+}
+
+/* 筛选后一件都不剩的空态。用虚线框，和「队列是空的」区分开 ——
+   两种空是两回事：一种是真的没任务，一种是条件收得太紧。 */
+.filter-empty {
+  margin-top: 12px;
+  padding: 26px 16px;
+  text-align: center;
+  border: 1px dashed var(--line);
+  border-radius: 12px;
+}
 
 .queue-head {
   margin: 0 0 4px;
@@ -1037,6 +1121,23 @@ body {
 
   .field input[type='number'] {
     width: 100%;
+  }
+
+  /* 筛选条：窄屏一项一行，控件撑满剩余宽度，避免输入框定宽把这一行撑破。 */
+  .queue-filter {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .filter-field {
+    justify-content: space-between;
+  }
+
+  .filter-input,
+  .filter-select {
+    flex: 1;
+    width: auto;
   }
 
   .queue-card {

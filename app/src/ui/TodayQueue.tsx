@@ -23,6 +23,12 @@ import type { Task } from '../core/types'
 import { formatMinutes } from './format'
 import type { TaskQueue } from './useTaskQueue'
 
+/** 紧急度筛选：全部 / 只看紧急（7 天内到期或已逾期）/ 只看不紧急 */
+type UrgencyFilter = 'all' | 'urgent' | 'normal'
+
+/** 星级筛选：全部，或精确到某一档（1–5） */
+type StarFilter = 'all' | '1' | '2' | '3' | '4' | '5'
+
 interface TodayQueueProps {
   queue: TaskQueue
   /** 外面传来的一句话提示（比如「已加入 XXX」），显示在队列上方 */
@@ -35,6 +41,35 @@ export function TodayQueue({ queue, notice }: TodayQueueProps) {
 
   // 哪张卡片被点开了。只允许开一张：同时展开多张会把队列读成一堆碎片。
   const [openId, setOpenId] = useState<string | null>(null)
+
+  // Day 12：筛选 —— 三个条件（关键词 / 紧急度 / 星级）。
+  //
+  // ⚠️ 筛选**只决定「显示哪几件」**，既不碰数据、也不重新算分排序。
+  //    所以下面先把每条标上它在**全队列**里的名次，再按条件筛 ——
+  //    名次跟着条目走，筛出来的第一件依旧是全局最该做的那件，序号也照旧。
+  //    如果筛完重新从 1 编号，用户会误以为「顺序变了」，而排序算法其实一动没动。
+  const [keyword, setKeyword] = useState('')
+  const [urgency, setUrgency] = useState<UrgencyFilter>('all')
+  const [stars, setStars] = useState<StarFilter>('all')
+
+  const needle = keyword.trim().toLowerCase()
+  const filtering = needle !== '' || urgency !== 'all' || stars !== 'all'
+
+  const clearFilters = () => {
+    setKeyword('')
+    setUrgency('all')
+    setStars('all')
+  }
+
+  const visible = ranked
+    .map((entry, index) => ({ entry, rank: index + 1 }))
+    .filter(({ entry }) => {
+      if (needle !== '' && !entry.task.title.toLowerCase().includes(needle)) return false
+      if (urgency === 'urgent' && !entry.priority.isUrgent) return false
+      if (urgency === 'normal' && entry.priority.isUrgent) return false
+      if (stars !== 'all' && entry.task.importance !== Number(stars)) return false
+      return true
+    })
 
   // Day 11：完成不再直接写库，而是走 useTaskQueue 里的 completeTask ——
   // 它写完之后会浮出一条可撤销的提示条（见 ActionToast）。
@@ -118,13 +153,79 @@ export function TodayQueue({ queue, notice }: TodayQueueProps) {
     <section className="card">
       <h2>今日队列</h2>
 
+      {/* Day 12：筛选条。放在列表上方 —— 先定「看哪几件」，再看队列。 */}
+      <div className="queue-filter">
+        <label className="filter-field">
+          <span className="filter-label">关键词</span>
+          <input
+            type="search"
+            className="filter-input"
+            value={keyword}
+            onChange={(event) => setKeyword(event.target.value)}
+            placeholder="搜任务名…"
+          />
+        </label>
+
+        <label className="filter-field">
+          <span className="filter-label">紧急度</span>
+          <select
+            className="filter-select"
+            value={urgency}
+            onChange={(event) => setUrgency(event.target.value as UrgencyFilter)}
+          >
+            <option value="all">全部</option>
+            <option value="urgent">只看紧急</option>
+            <option value="normal">只看不紧急</option>
+          </select>
+        </label>
+
+        <label className="filter-field">
+          <span className="filter-label">星级</span>
+          <select
+            className="filter-select"
+            value={stars}
+            onChange={(event) => setStars(event.target.value as StarFilter)}
+          >
+            <option value="all">全部</option>
+            <option value="1">★1</option>
+            <option value="2">★2</option>
+            <option value="3">★3</option>
+            <option value="4">★4</option>
+            <option value="5">★5</option>
+          </select>
+        </label>
+
+        {filtering && (
+          <button type="button" className="filter-clear" onClick={clearFilters}>
+            清除筛选
+          </button>
+        )}
+      </div>
+
       <p className="queue-head">
-        共 <strong>{ranked.length}</strong> 件待办
+        {filtering ? (
+          <>
+            筛出 <strong>{visible.length}</strong> / {ranked.length} 件
+          </>
+        ) : (
+          <>
+            共 <strong>{ranked.length}</strong> 件待办
+          </>
+        )}
         {notice !== '' && <span className="queue-notice">· {notice}</span>}
       </p>
 
-      <ol className="queue">
-        {ranked.map((entry, index) => {
+      {visible.length === 0 ? (
+        <div className="filter-empty">
+          <p className="state-title">没有符合条件的任务</p>
+          <p className="state-sub">换个关键词，或者放宽紧急度与星级。</p>
+          <button type="button" className="state-action" onClick={clearFilters}>
+            清除筛选
+          </button>
+        </div>
+      ) : (
+        <ol className="queue">
+        {visible.map(({ entry, rank }) => {
           const open = openId === entry.task.id
           const overdue = isOverdue(entry.task, now)
           // Day 11：「处理中」只给被点的那一张卡。用全局 busy 会让所有卡片一起变，
@@ -160,7 +261,7 @@ export function TodayQueue({ queue, notice }: TodayQueueProps) {
                 }}
               >
                 <div className="queue-line">
-                  <span className="queue-no">{index + 1}</span>
+                  <span className="queue-no">{rank}</span>
                   <span className="queue-title">{entry.task.title}</span>
                   <span className="queue-score">{entry.priority.score.toFixed(1)}</span>
                 </div>
@@ -205,7 +306,8 @@ export function TodayQueue({ queue, notice }: TodayQueueProps) {
             </li>
           )
         })}
-      </ol>
+        </ol>
+      )}
 
       {done.length > 0 && (
         <p className="done-line">
