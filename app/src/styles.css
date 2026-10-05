@@ -954,6 +954,40 @@ body {
   text-decoration: line-through;
 }
 
+/* ---- 管理视图的行结构（Day 14） ----
+   队列页的卡片是「一整块」，管理页需要「标题行 + 行内按钮」两段：
+   标题整行可点进详情，按钮摊在下面单独一行，操作时不必先点开卡片。 */
+.task-item {
+  margin-bottom: 14px;
+}
+
+/* 标题行在带边框的容器里，去掉自身的外边距与边框，
+   边框改由 .task-item 承担（见下面 .task-item > .task-row）。 */
+.task-item > .task-row {
+  margin-bottom: 0;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.task-item > .task-inline {
+  border: 1px solid var(--line);
+  border-top: none;
+  border-radius: 0 0 10px 10px;
+  background: var(--card);
+}
+
+.task-inline {
+  display: flex;
+  gap: 8px;
+  padding: 8px 10px;
+}
+
+.task-inline button {
+  flex: none;
+  font-size: 13px;
+  padding: 5px 12px;
+}
+
 /* ---- 任务详情视图（Day 13） ---- */
 
 .back-link {
