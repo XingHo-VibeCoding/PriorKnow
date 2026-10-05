@@ -9,21 +9,20 @@
 //             这里只负责把「文件根本不是 JSON」这类**连校验都进不去**的情况挡在门外。
 //   · 载入示例 —— 也是覆盖，但数据由我们自己造，不会格式错，所以重点是确认。
 //
-// Day 11 起「数据层状态」这个开发开关有四种：正常 / 慢速 / 读取失败 / 写入失败。
-// 多出来的最后一种是为了让「完成失败」的提示条能被真的演出来 ——
-// 本地库几乎不会写失败，不主动造一个，那条分支就永远没人见过。
+// Day 13：原来住在这里的「数据层状态」开发开关**搬去了页面外壳**（见 DevStateSwitch）。
+//   搬的理由：分成三个视图之后，要演示「加载中」得先跑到这一页改开关、再切回首页看效果 ——
+//   而切走的那一瞬间这一页自己也在加载中，两边都看不清。
+//   它本来就是「让看不见的状态变得看得见」的工具，不是数据管理的一部分。
+//   ⚠️ 结果：这个组件现在**不接收** dataMode 了 —— 它只管数据，不管演示。
 
 import { useRef, useState, type ChangeEvent } from 'react'
 import { taskRepo } from '../data'
 import type { Task } from '../core/types'
 import { describeError } from './format'
-import type { DataMode, TaskQueue } from './useTaskQueue'
+import type { TaskQueue } from './useTaskQueue'
 
 interface DataPanelProps {
   queue: TaskQueue
-  /** 数据层的演示模式（正常 / 慢速 / 失败） */
-  dataMode: DataMode
-  onDataModeChange: (next: DataMode) => void
 }
 
 /** 一次操作的结果提示。tone 决定它是绿的还是红的。 */
@@ -32,7 +31,7 @@ interface Status {
   tone: 'ok' | 'bad'
 }
 
-export function DataPanel({ queue, dataMode, onDataModeChange }: DataPanelProps) {
+export function DataPanel({ queue }: DataPanelProps) {
   const { total, busy, act, loadSamples } = queue
   const [status, setStatus] = useState<Status | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
@@ -140,28 +139,6 @@ export function DataPanel({ queue, dataMode, onDataModeChange }: DataPanelProps)
       />
 
       {status !== null && <p className={`status status-${status.tone}`}>{status.text}</p>}
-
-      <div className="dev">
-        <label className="dev-row" htmlFor="data-mode">
-          <span className="dev-label">数据层状态（开发用）</span>
-          <select
-            id="data-mode"
-            className="dev-select"
-            value={dataMode}
-            onChange={(event) => onDataModeChange(event.target.value as DataMode)}
-          >
-            <option value="normal">正常</option>
-            <option value="slow">模拟慢速 —— 看「加载中」和「处理中」</option>
-            <option value="fail">模拟读取失败 —— 看「错误」</option>
-            <option value="writeFail">模拟写入失败 —— 看失败提示条</option>
-          </select>
-        </label>
-        <p className="dev-note">
-          本地数据库读一次只要几毫秒、也几乎不会写失败，这些状态平时根本看不见。
-          这个开关把它们主动演出来，好确认它们真的存在、也真的能用。
-          「慢速」连写入一起放慢 —— 否则「处理中…」只闪几毫秒，写了等于没做。
-        </p>
-      </div>
     </section>
   )
 }

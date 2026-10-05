@@ -13,6 +13,12 @@
 //   · 写完不再是卡片默默消失，而是浮出一条带任务名的提示条，5 秒内可以撤销。
 //   提示条本身不在这个文件里（见 ActionToast）—— 因为它得活过队列被清空的那一刻。
 //
+// Day 13：新增「任务详情」视图之后，这个文件里的两样东西被它复用了 ——
+//   · FactorBreakdown（三因子明细）—— 详情页要把「各项各占多少分」摆得更开；
+//   · describeSegment（这条落在哪个区段）—— 详情页要单独说一句。
+//   所以这两个从「文件内部使用」改成了 export。**行为一行没变**，
+//   队列里点开卡片的交互、文案、样式全都照旧。
+//
 // ⚠️ 这个文件不碰 IndexedDB，只认 data/ 出口的接口；算分全走 core/。
 //   读库与写操作都从 useTaskQueue 来 —— 预算条和数据面板用的是同一份状态。
 
@@ -325,7 +331,7 @@ export function TodayQueue({ queue, notice }: TodayQueueProps) {
  * 说不出各项**各占多少**。这里把三个因子各自的贡献分摆出来，
  * 分数就不再是一个黑箱数字，而是一笔能对得上的账。
  */
-function FactorBreakdown({ entry }: { entry: QueueEntry }) {
+export function FactorBreakdown({ entry }: { entry: QueueEntry }) {
   const factors = entry.priority.factors
   const rows = [factors.urgency, factors.importance, factors.quickWin]
 
@@ -369,7 +375,7 @@ function isOverdue(task: Task, now: Date): boolean {
  * @param now 本次排序用的时刻。必须与算分同一个 now，
  *            否则页面挂着不动几小时后，分数还是旧的、天数却变了。
  */
-function describeSegment(entry: QueueEntry, now: Date): string {
+export function describeSegment(entry: QueueEntry, now: Date): string {
   if (entry.priority.isUrgent) return '已逾期或 7 天内到期'
 
   if (entry.task.dueAt === null) return '无期限'
