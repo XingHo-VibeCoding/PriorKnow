@@ -80,7 +80,7 @@
 **理由**：知先是个人任务工具，数据量在几百条量级，且 PRD 明确要求「断网可用」。IndexedDB 完全够用，还省掉了网络延迟与费用。
 
 > ✅ **原「待核实」项已于 2026-10-05（Day 15）核实完毕**（腾讯云官方《资源点价格文档》
-> + 控制台实拍 `screenshots/day15-控制台套餐与额度.png`）：
+> + 控制台实拍 `screenshots/day15-控制台套餐与额度.png`，仓库根起算）：
 > 1. **免费环境包含 PostgreSQL** —— 官方计费表里 PostgreSQL 数据库
 >    （CPU 342 点/(核·小时)、容量 0.5 点/GB/小时）就在免费额度体系内；
 > 2. **本环境已确认就是 PostgreSQL** —— 控制台左侧菜单直接是「**PostgreSQL 管理**」，
@@ -204,7 +204,7 @@ priorknow/
 
 ## 七、数据流图
 
-![知先数据流图](./docs/data-flow.png)
+![知先数据流图](./素材/data-flow.png)
 
 <details>
 <summary>mermaid 源码（点开可复制修改）</summary>
@@ -230,7 +230,7 @@ flowchart TD
 
 **关键点**：第 3 周接入云端时，只有图中 `数据层接口 → CloudBase` 这条虚线是新增的，**其余部分一动不动**。
 
-> **画图备注**：本图源码是 mermaid，此处改用渲染好的图片（`docs/data-flow.png`）。原因是 GitHub 页面渲染这段 mermaid 时报错 `Could not find a suitable point for the given distance`；而同一份代码在本地 mermaid v10 与 v11 下都能正常渲染，说明问题出在渲染环境而非图的写法。改用图片可确保任何环境下都能看到这张图，源码仍保留在上方折叠块里可随时修改。
+> **画图备注**：本图源码是 mermaid，此处改用渲染好的图片（`docs/素材/data-flow.png`，Day 16 目录整理后移入 `素材/`）。原因是 GitHub 页面渲染这段 mermaid 时报错 `Could not find a suitable point for the given distance`；而同一份代码在本地 mermaid v10 与 v11 下都能正常渲染，说明问题出在渲染环境而非图的写法。改用图片可确保任何环境下都能看到这张图，源码仍保留在上方折叠块里可随时修改。
 >
 > 另外，图中只画「去」的下行流，不画回程——回程走的是同一条路径的反方向，画成闭环反而看不清。
 

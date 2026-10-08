@@ -175,7 +175,7 @@ https://priorknow-d0go4uh2uc0f62465.service.tcloudbase.com/api/health
 - **地址栏**（能看清完整 URL）
 - **页面上的 JSON**（`ok:true` 那段）
 
-截图命名建议：`screenshots/day15-云函数公网地址返回.png`。
+截图命名建议：仓库根 `screenshots/day15-云函数公网地址返回.png`。
 
 ---
 

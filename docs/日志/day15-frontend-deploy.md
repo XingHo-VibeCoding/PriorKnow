@@ -216,7 +216,7 @@ https://priorknow-d0go4uh2uc0f62465-1489177462.tcloudbaseapp.com/
 ## 六、板块③完成后
 
 1. 把公网地址填进 `cloud-notes.md`
-2. 截图存进 `screenshots/day15-前端公网页面.png`
+2. 截图存进仓库根 `screenshots/day15-前端公网页面.png`
 3. 回来说一声，我做**板块④（`api-contract.md`）**
 
 ⚠️ **板块④需要先一起填一张两列表格**（课程第 1287 行：

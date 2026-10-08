@@ -37,9 +37,11 @@ out/
 logs/
 
 # ---- 仅本地保留的课程/个人资料（不上传仓库） ----
+# ⚠️ Day 16 起文档移入 docs/ 后，这几行的路径已同步为移动后的位置。
+#   无前导斜杠的规则本来就会匹配任意层级，显式写全路径更不容易看错。
 28天VibeCoding学习打卡计划.md
-day7-week1-validation.md
-day8-dsh-handoff.md
+docs/日志/day7-week1-validation.md
+docs/日志/day8-dsh-handoff.md
 
 # ---- 工具与编辑器临时文件 ----
 .workbuddy/

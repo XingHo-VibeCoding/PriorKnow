@@ -42,20 +42,16 @@
 
 ## 五、目录约定
 
-> 以下是仓库根目录的现有结构。Day 7 起代码放在 `app/` 子目录，框架已按技术设计落地。
+> 以下是仓库根目录的现有结构。Day 7 起代码放在 `app/` 子目录，Day 16 起文档归入 `docs/`。
 
 ```
 PriorKnow/
 ├── AGENTS.md          # 本文件：项目协作规则
-├── 项目描述.md        # 产品总纲（知先 / PriorKnow）
-├── research.md        # 产品调研（Day 3，竞品对比）
-├── PRD.md             # 产品需求文档（Day 4，MVP 功能与验收标准）
-├── TECH_DESIGN.md     # 技术设计（Day 5，技术路线 / 数据模型 / 接口契约 / 数据流）
-├── index.html         # 占位页（Day 2）
 ├── app/               # 应用代码（Day 7 起）
+│   ├── index.html     # 页面入口（React 挂到 <div id="root">）
 │   ├── README.md      # 运行说明（怎么启动、踩过什么坑）
 │   ├── package.json   # 依赖与脚本
-│   ├── vite.config.ts # Vite 配置（含 WSL 网络盘所需的轮询监听）
+│   ├── vite.config.ts # Vite 配置（含 base: './' —— 静态托管必须）
 │   ├── tsconfig.json  # TypeScript 配置
 │   └── src/
 │       ├── main.tsx   # 程序入口
@@ -63,13 +59,23 @@ PriorKnow/
 │       ├── styles.css # 样式（纯 CSS，不引 UI 框架）
 │       ├── core/      # 业务层：纯 TS，不依赖 React（types / priority / priorityQueue）
 │       ├── data/      # 数据层：repository（接口）/ local-indexeddb（实现）/ index（出口）
-│       └── ui/        # 界面层：TaskComposer / TodayQueue
-├── docs/              # 文档配图（如 data-flow.png 数据流图）
-├── screenshots/       # 每日打卡截图
+│       └── ui/        # 界面层：九个组件（AppNav / TodayPage / TasksPage / …）
+├── cloudfunctions/    # CloudBase 云函数（Day 15）
+│   └── api-health/    # /api/health 健康检查（已上线公网）
+├── cloudbaserc.json   # CloudBase 配置（HTTP 函数 + 静态托管）
+├── docs/              # 全部文档（Day 16 整理，见下）
+│   ├── 规格/          # 需求与设计：项目描述 / research / PRD / TECH_DESIGN
+│   │                  #   / api-contract（Day 15 产出）/ cloud-notes（云端资源）
+│   ├── 日志/          # 每日产出与排障记录：day<N>-*.md
+│   └── 素材/          # 文档配图：data-flow.png
+├── screenshots/       # 每日打卡截图（day<N>-<描述>.png）
 ├── .gitignore         # 忽略规则
 ├── .gitattributes     # 换行符统一（LF）
 └── 28天VibeCoding学习打卡计划.md   # 课程计划（本地保留，已加入忽略名单，不入库）
 ```
+
+> ⚠️ **Day 16 整理目录时删掉了根目录的 `index.html`** ——
+> 那是 Day 2 的占位页，与 `app/index.html` **同名**容易点错，真入口是后者。
 
 **三层依赖是单向的**：`ui/` → `data/` 接口 + `core/` 算法。**`core/` 绝不依赖 React**，
 这样算法能独立测试，第 3 周换云端实现时上层一行不用改。
@@ -87,10 +93,19 @@ PriorKnow/
 - [x] **Day 2**：建立代码仓库（PriorKnow，Public）+ index.html 占位页 + 首次提交（含 GitHub 仓库首页截图）
 - [x] **Day 3**：产品调研 —— research.md 对比 Todoist / 滴答清单 / 微软 To Do，结论：三家都在「记录」层卷，没人回答「我现在最该做哪件、为什么」；同时把课程计划文档移出版本管理
 - [x] **Day 4**：写 PRD —— PRD.md（MVP 9 项功能、4 个视图、7 条异常与边界、17 条验收标准、AI 自检记录）；明确「砍掉云同步、暂缓优先级公式精细调参」
-- [x] **Day 5**：技术设计 —— TECH_DESIGN.md（技术路线 / 三层分工 / 数据层抽象 / 数据模型 / 接口契约 / 数据流图）+ docs/data-flow.png
+- [x] **Day 5**：技术设计 —— TECH_DESIGN.md（技术路线 / 三层分工 / 数据层抽象 / 数据模型 / 接口契约 / 数据流图）+ docs/素材/data-flow.png
 - [x] **Day 6**：检查并完善 AGENTS.md —— 核查时发现三条 Day 1 约束缺失，补回第八节；新增第九节个人规则两条（不代笔、改动附验证方式）
 - [x] **Day 7**：用项目文档生成第一个可运行版本 —— `app/`（Vite + React + TS）。分四步：① 骨架跑通 ② 数据层接口 + IndexedDB 实现 ③ 优先级算法 + 二叉堆优先队列 ④ 今日队列闭环。闭环已通：加任务 → 存库 → 算分 → 自动重排 → 显示理由（CDP 真点验证 13 项全过，含刷新持久化与 IndexedDB 原始记录核对）
-- [ ] **Day 8**：待补充
+- [x] **Day 8**：风格统一 —— 设计令牌落到 CSS 变量、对比度全部达标（WCAG AA）、DevStateSwitch 三开关（慢速/读失败/写失败）
+- [x] **Day 9**：组件拆分与代码清理（`useTaskQueue` 抽出、DataPanel 独立）
+- [x] **Day 10**：窄屏适配 —— 375px 下分数右边缘对齐；键盘可达性实测 35/35 有焦点环
+- [x] **Day 11**：写入失败的错误呈现 —— 抽出 `ActionToast` 提示条，**失败不再整页变错误块**（这条教训写进了 `useTaskQueue` 的注释）
+- [x] **Day 12**：项目 Skill 文件（`skills/frontend-guidelines/`）+ 紧急度/星级筛选
+- [x] **Day 13**：引入 `react-router-dom` —— 三个视图（今日队列 / 全部任务 / 详情）+ 404 页 + 四种状态齐全
+- [x] **Day 14**：同伴用户测试 —— 发现「两个视图功能重叠」，最小修复：`/tasks` 改成真正的管理页（新增行内完成/删除/恢复）；第 2 周周验证材料已入库
+- [x] **Day 15**：打通云端链路 —— CloudBase 环境（PostgreSQL / 3000 点/月 / 2027-04-05 到期）；`/api/health` 云函数已上线公网；前端已部署静态托管；产出 `api-contract.md`（第 3 周唯一依据，2 个增量同步接口 + 1 张 `tasks` 表）
+- [ ] **Day 16**：数据库建表 —— 按 `api-contract.md` 第五节写 `db/schema.sql` + `db/seed.sql`，并在 CloudBase 控制台执行
+- [ ] **Day 17 起**：第 3 周其余任务（读接口 / 写接口 / 数据访问层 / 检查台 / 跨域）
 
 ---
 
