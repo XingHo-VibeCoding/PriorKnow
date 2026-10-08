@@ -1,0 +1,20 @@
+{
+  "name": "api-health",
+  "version": "1.0.0",
+  "description": "PriorKnow 第一个云函数：健康检查，不连数据库、不写业务（Day 15）",
+  "main": "index.js",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@cloudbase/functions-framework": "^1.18.2",
+    "@cloudbase/node-sdk": "^3.18.3"
+  },
+  "license": "MIT",
+  "allowScripts": {
+    "core-js-pure@3.50.0": true
+  }
+}

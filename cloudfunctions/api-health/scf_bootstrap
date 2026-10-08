@@ -1,0 +1,22 @@
+#!/bin/bash
+# CloudBase HTTP 云函数的启动脚本（Day 15）
+#
+# 官方原文（计划第 1228 行对应的官方《启动文件说明》）：
+#   「HTTP 函数需要 scf_bootstrap 启动脚本来启动 Web Server」
+#   functions-framework 是官方标注「**推荐**」的入口方式。
+#
+# 三个官方明确要求，缺一个就启动失败：
+#   1. 文件名是 scf_bootstrap，**没有扩展名**（写成 .sh 不被识别）。
+#   2. **必须用绝对路径**（官方《运行环境支持》给的表）：
+#      Node.js 24.11 → /var/lang/node24/bin/node
+#      云端 PATH 与本地不同，写 `node ...` 可能找不到命令。
+#   3. 端口固定 **9000**，且服务要监听 0.0.0.0（不能只听 127.0.0.1）。
+#
+# --logDirname 指向 /tmp：官方注明「腾讯云标准环境下仅 /tmp 目录可读写」。
+# --extendedContextKey 让请求头 X-Cloudbase-Context 能取到（含环境ID等信息）。
+
+exec /var/lang/node24/bin/node node_modules/@cloudbase/functions-framework/bin/tcb-ff.js \
+  --port=9000 \
+  --logDirname=/tmp/logs \
+  --interceptOutput=false \
+  --extendedContextKey=X-Cloudbase-Context

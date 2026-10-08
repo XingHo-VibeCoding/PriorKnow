@@ -1,0 +1,32 @@
+{
+  "$schema": "https://static.cloudbase.net/cli/cloudbaserc.schema.json",
+  "version": "2.1",
+  "envId": "priorknow-d0go4uh2uc0f62465",
+  "functionRoot": "./cloudfunctions",
+  "functions": [
+    {
+      "name": "api-health",
+      "type": "HTTP",
+      "runtime": "Nodejs24.11",
+      "handler": "index.main",
+      "installDependency": false,
+      "public": true,
+      "gatewayPath": "/api",
+      "timeout": 15,
+      "memorySize": 256
+    }
+  ],
+  "app": {
+    "serviceName": "priorknow-app",
+    "root": "./app",
+    "framework": "vite",
+    "installCommand": "npm install",
+    "buildCommand": "npm run build",
+    "outputDir": "./dist",
+    "deployPath": "/",
+    "ignore": [
+      "screenshots",
+      "docs"
+    ]
+  }
+}
