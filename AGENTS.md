@@ -46,6 +46,7 @@
 
 ```
 PriorKnow/
+├── README.md          # 仓库首页自我介绍（Day 16 补；GitHub 首页展示）
 ├── AGENTS.md          # 本文件：项目协作规则
 ├── app/               # 应用代码（Day 7 起）
 │   ├── index.html     # 页面入口（React 挂到 <div id="root">）
