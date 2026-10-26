@@ -112,47 +112,59 @@ exports.main = async (event, context) => {
     return replyRaw(204, headers, '')
   }
 
-  // ── 非 GET：明确 405，不悄悄返回 200 ────────────────────
-  // 悄悄返回 200 会让 Day 17 接真接口时的调试变难。
-  // ⚠️ Day 17 仍是 GET-only：POST 写入接口在 Day 18 才实现。
-  if (method !== 'GET') {
-    return reply(405, { ok: false, data: null, error: '这个接口只支持 GET，写入接口还没实现' }, { Allow: 'GET' })
-  }
+  // ── 路由分派 ────────────────────────────────────────
+  const isTasks = path === '/tasks' || path === '/api/tasks'
 
-  if (isHealth) {
-    // ⚠️ Day 15 这里是 `{ ok, service, time }`（缺 data / error）。
-    //    契约第七节「不一致 1」写着「Day 17 实现第一个业务接口时一起改并重新验收」——
-    //    今天就是那天。课程第 1478 行也明说「所有接口都不例外」。
-    return reply(200, {
-      ok: true,
-      data: {
-        // 项目英文名。课程模板要求填项目英文名，我用仓库名 priorknow。
-        service: 'priorknow',
-        // ⚠️ 课程模板里没有这一项，是我加的。
-        //    作用：验证时刷新一次看 time 变没变 —— 变了才说明是函数实时算出来的，
-        //    不是缓存页或静态文件。觉得多余可以删掉，不影响其他部分。
-        time: new Date().toISOString(),
-      },
-      error: null,
-    })
-  }
-
-  // ── GET /api/tasks —— 契约第一节第 1 个接口（Day 17）──────────
-  // 网关会把 `/api` 前缀剥掉，所以这里看到的是 `/tasks`；
-  // 本地直连时前缀不会被剥，所以两种都判（与 health 同一写法）。
-  if (path === '/tasks' || path === '/api/tasks') {
-    let url
-    try {
-      url = new URL(rawUrl, 'http://localhost')
-    } catch {
-      url = new URL('http://localhost/')
+  if (method === 'GET') {
+    if (isHealth) {
+      // ⚠️ Day 15 这里是 `{ ok, service, time }`（缺 data / error）。
+      //    契约第七节「不一致 1」写着「Day 17 实现第一个业务接口时一起改并重新验收」——
+      //    今天就是那天。课程第 1478 行也明说「所有接口都不例外」。
+      return reply(200, {
+        ok: true,
+        data: {
+          // 项目英文名。课程模板要求填项目英文名，我用仓库名 priorknow。
+          service: 'priorknow',
+          // ⚠️ 课程模板里没有这一项，是我加的。
+          //    作用：验证时刷新一次看 time 变没变 —— 变了才说明是函数实时算出来的，
+          //    不是缓存页或静态文件。觉得多余可以删掉，不影响其他部分。
+          time: new Date().toISOString(),
+        },
+        error: null,
+      })
     }
-    return await handleGetTasks(url.searchParams, http.headers)
+
+    // ── GET /api/tasks —— 契约第一节第 1 个接口（Day 17）──────────
+    // 网关会把 `/api` 前缀剥掉，所以这里看到的是 `/tasks`；
+    // 本地直连时前缀不会被剥，所以两种都判（与 health 同一写法）。
+    if (isTasks) {
+      let url
+      try {
+        url = new URL(rawUrl, 'http://localhost')
+      } catch {
+        url = new URL('http://localhost/')
+      }
+      return await handleGetTasks(url.searchParams, http.headers)
+    }
+
+    // 契约外路径一律 404
+    return reply(404, { ok: false, data: null, error: '没有这个接口' })
   }
 
-  // 契约里登记过的才写，契约外的不写。
-  // POST /api/tasks 在 Day 18，其余路径今天一律 404。
-  return reply(404, { ok: false, data: null, error: '没有这个接口' })
+  // ── POST /api/tasks —— 契约第三节第 2 个接口（Day 18）──────────
+  if (method === 'POST') {
+    if (isTasks) return await handlePostTasks(event, http.headers)
+    // 契约里登记过的才写，契约外的不写
+    return reply(404, { ok: false, data: null, error: '没有这个接口' })
+  }
+
+  // ── 其余方法：明确 405，不悄悄返回 200 ────────────────────
+  // 悄悄返回 200 会让调试变难。PATCH / DELETE 在 Day 22 才做。
+  return reply(
+    405,
+    { ok: false, data: null, error: `这个接口不支持 ${method} 请求` },
+    { Allow: 'GET, POST, OPTIONS' }
+  )
 }
 
 /**
@@ -456,6 +468,398 @@ function toIso(value) {
   return Number.isNaN(d.getTime()) ? null : d.toISOString()
 }
 
+// ════════════════════════════════════════════════════════════
+//  POST /api/tasks —— Day 18 新增
+//  契约：docs/规格/api-contract.md 第三节第 2 个接口
+// ════════════════════════════════════════════════════════════
+
+/** 契约：一次最多 1000 条（在撞云函数请求体上限之前先给一句人话） */
+const MAX_BATCH = 1000
+/** 契约：title 去空格后 1–200 字（与 db/schema.sql 的 CHECK 同一条规则） */
+const TITLE_MAX = 200
+/** 与 db/schema.sql 的 tasks_id_format_chk 同一条正则 —— 两处不一致会变成 500 而不是 400 */
+const ID_FORMAT = /^[A-Za-z0-9_-]{1,64}$/
+/** 与 db/schema.sql 的 status CHECK 同一组取值 */
+const STATUS_SET = new Set(['todo', 'doing', 'done'])
+/** 分批查库时每批的条数：PostgREST 的 `in.(…)` 是拼在 URL 上的，塞太多会超长 */
+const IN_BATCH = 100
+
+async function handlePostTasks(event, rawHeaders) {
+  // ── ① X-User-Id（与 GET 同一条规则，同一个正则）──────────────
+  const userIdRaw = readHeader(rawHeaders, 'x-user-id')
+  const userId = typeof userIdRaw === 'string' ? userIdRaw.trim() : ''
+  if (!userId) {
+    return reply(400, { ok: false, data: null, error: '缺少 X-User-Id 请求头' })
+  }
+  if (!ID_FORMAT.test(userId)) {
+    return reply(400, { ok: false, data: null, error: 'X-User-Id 格式不对（只能 1–64 位字母、数字、下划线或连字符）' })
+  }
+
+  // ── ② 请求体：必须是数组 ────────────────────────────────────
+  // 🔴 请求体在**第一个参数 `event`**，不在 `httpContext` 里 ——
+  //    httpContext 只有 url / httpMethod / headers（读 functions-framework 的
+  //    build/middlewares/context.js 确认）。框架用 koa-body 解析 JSON，
+  //    顶层是数组时会原样给到 event（不是包一层 { body: [...] }）。
+  if (!Array.isArray(event)) {
+    return reply(400, { ok: false, data: null, error: '请求体必须是一个任务数组', rejected: [] })
+  }
+  if (event.length === 0) {
+    return reply(400, { ok: false, data: null, error: '没有要推送的内容', rejected: [] })
+  }
+  if (event.length > MAX_BATCH) {
+    return reply(400, { ok: false, data: null, error: `一次最多推送 ${MAX_BATCH} 条，请分批`, rejected: [] })
+  }
+
+  // ── ③ 第一遍：逐条判定，这一遍完全不碰数据库 ─────────────────
+  // 契约「先校验、后写入」：把所有能判的都在内存里判完，
+  // 避免「写一条提交一条」导致「第 3 条失败但前 2 条已提交」。
+  const rejected = []
+  const candidates = []
+  for (let i = 0; i < event.length; i++) {
+    const judged = judgeOne(event[i], i)
+    if (judged.reject) rejected.push(judged.reject)
+    else candidates.push(judged.item)
+  }
+
+  if (candidates.length === 0) {
+    // 一条都没过校验 → 连库都不用开
+    return reply(400, { ok: false, data: null, error: '所有条目都没通过校验', rejected })
+  }
+
+  // ── ④ 第二遍：查这些 id 在库里的现状（决定「插入」还是「更新」）──
+  let db
+  try {
+    db = getDb()
+  } catch (err) {
+    console.error('[POST /api/tasks] app.rdb() 初始化失败：', err && err.message)
+    return reply(500, { ok: false, data: null, error: '服务器连不上数据库，请稍后再试' })
+  }
+
+  try {
+    const existing = new Map() // id → 库里那一行
+    const ids = [...new Set(candidates.map((c) => c.id))]
+    for (const batch of chunk(ids, IN_BATCH)) {
+      const rows = await queryAll(
+        db
+          .from('tasks')
+          .select(
+            'id,title,status,due_at,estimate_minutes,importance,created_at,deleted_at,purged_at'
+          )
+          .eq('user_id', userId)
+          .in('id', batch)
+      )
+      for (const r of rows) existing.set(r.id, r)
+    }
+
+    // ── ⑤ 分成「新增」和「修改」，并处理墓碑 ────────────────────
+    const toInsert = []
+    const toUpdate = []
+    for (const c of candidates) {
+      const cur = existing.get(c.id)
+      if (cur && cur.purged_at !== null && cur.purged_at !== undefined) {
+        // 墓碑：契约要求「这个任务已被彻底删除，不能恢复」
+        rejected.push({ index: c.index, field: 'id', reason: '这个任务已被彻底删除，不能恢复' })
+        continue
+      }
+      if (cur) toUpdate.push(c)
+      else toInsert.push(c)
+    }
+
+    // purge 一个库里不存在的 id：没有行可以打墓碑，直接拒（不然会插进一行空壳）
+    const inserts = []
+    for (const c of toInsert) {
+      if (c.purge) {
+        rejected.push({ index: c.index, field: 'id', reason: `找不到这个任务（编号 ${c.id}）` })
+        continue
+      }
+      // 🔴 新增必须带 title —— 但这条判定**只能放在这里**，不能放进 judgeOne：
+      //    修改时「不给 title」是完全合法的（意思是不改标题，沿用库里原值），
+      //    而"这一条到底是新增还是修改"要查过库才知道。
+      //    第一遍 judgeOne 是纯内存判定，它看到的只是一条没有 title 的对象，
+      //    那时候拒掉，会把「只改个状态」这种正常请求一起打死。
+      //    ⚠️ 线上实测过：漏了这条，缺 title 的新增会一路漏到数据库，
+      //       变成 NOT NULL 约束报错 → 500（本该是干净的 400 + rejected）。
+      if (c.provided.title === undefined) {
+        rejected.push({ index: c.index, field: 'title', reason: '新增任务必须带 title' })
+        continue
+      }
+      inserts.push(c)
+    }
+
+    // ── ⑥ 判重：只对「新增」做（契约：同区、未完成、未进回收站、title 去空格后相同）──
+    // ⚠️ 修改不判重 —— 「把一条 done 改回 todo」会被自己挡住。
+    const dupSet = new Set()
+    const newTitles = [...new Set(inserts.map((c) => c.provided.title).filter(Boolean))]
+    if (newTitles.length > 0) {
+      for (const batch of chunk(newTitles, 50)) {
+        const dups = await queryAll(
+          db
+            .from('tasks')
+            .select('id,title')
+            .eq('user_id', userId)
+            .neq('status', 'done')
+            .is('deleted_at', null)
+            .is('purged_at', null)
+            .in('title', batch)
+        )
+        for (const d of dups) dupSet.add(String(d.title).trim())
+      }
+    }
+
+    const acceptedInputs = []
+    let hasDuplicate = false
+    for (const c of [...inserts, ...toUpdate]) {
+      if (!existing.has(c.id) && dupSet.has(c.provided.title)) {
+        hasDuplicate = true
+        rejected.push({
+          index: c.index,
+          field: 'title',
+          reason: '相同标题的待办已经存在（这条没写入）',
+        })
+        continue
+      }
+      acceptedInputs.push(c)
+    }
+
+    // 排序：让 accepted 的顺序跟请求里的顺序一致，便于前端对账
+    acceptedInputs.sort((a, b) => a.index - b.index)
+    rejected.sort((a, b) => a.index - b.index)
+
+    if (acceptedInputs.length === 0) {
+      // 一条都没落库：重复提交给 409，纯校验失败给 400
+      const status = hasDuplicate ? 409 : 400
+      return reply(status, {
+        ok: false,
+        data: null,
+        error: hasDuplicate ? '相同标题的待办已经存在' : '所有条目都没通过校验',
+        rejected,
+      })
+    }
+
+    // ── ⑦ 写入：一条 upsert 语句（PostgREST 的 INSERT … ON CONFLICT (id) DO UPDATE）──
+    // 🔴 为什么一次写完而不是逐条：一次请求 = 一条 SQL 语句 = 天然原子，
+    //    这就是契约「在【一个事务】里写入全部 accepted」在 HTTP 接口下的等价实现。
+    const rows = acceptedInputs.map((c) => buildRow(c, existing.get(c.id), userId))
+
+    const written = await queryAll(
+      db.from('tasks').upsert(rows, { onConflict: 'id', defaultToNull: false }).select(COLUMNS)
+    )
+
+    const writtenById = new Map(written.map((w) => [w.id, w]))
+    const accepted = acceptedInputs
+      .map((c) => {
+        const w = writtenById.get(c.id)
+        if (!w) return null
+        const one = { id: w.id, seq: Number(w.seq) }
+        if (c.corrected) one.corrected = true
+        one.task = toTaskDto(w)
+        return one
+      })
+      .filter(Boolean)
+
+    // cursor = 推送后本区的最大 seq（这些行刚被推到最新，取它们里的最大值即可）
+    const maxSeq = accepted.reduce((m, a) => (a.seq > m ? a.seq : m), 0)
+
+    // ── ⑧ 服务端日志（一条，成功路径）──────────────────────────────────
+    // 目的：出问题时能从日志一眼看出「这次推送到底发生了什么」，
+    //       而不是只能靠前端 Console 猜。
+    // 🔴 只记**数量与编号**，不记标题 —— 日志会留存，标题是用户内容，不该进去。
+    const createdCount = acceptedInputs.filter((c) => !existing.has(c.id)).length
+    console.log(
+      '[POST /api/tasks] 成功',
+      JSON.stringify({
+        user: userId,
+        received: event.length,
+        created: createdCount,
+        updated: accepted.length - createdCount,
+        rejected: rejected.length,
+        cursor: maxSeq,
+      })
+    )
+
+    return reply(201, {
+      ok: true,
+      data: { cursor: maxSeq, accepted, rejected },
+      error: null,
+    })
+  } catch (err) {
+    // 🔴 不把堆栈或英文异常抛给前端；但**必须打到日志**，否则线上只能靠猜。
+    //    查日志的正确命令（`tcb fn log` 在本环境返回 No invocation logs 是坏的，别用）：
+    //      tcb logs search -e <envId> --limit 20
+    //      tcb logs search -e <envId> -q 'function_name:"api-health" AND log:"写入失败"'
+    console.error('[POST /api/tasks] 写入失败：', err && err.message, err && (err.dbCode || err.code))
+    return reply(500, { ok: false, data: null, error: '服务器内部错误，请稍后再试' })
+  }
+}
+
+/**
+ * 判定单条 —— 只做内存里的判断，不碰数据库。
+ * 返回 { reject: {index, field, reason} } 或 { item: {...} }。
+ *
+ * 名字里的「判」不含判重：判重要查库，在第二遍做。
+ */
+function judgeOne(raw, index) {
+  if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) {
+    return { reject: { index, field: null, reason: '不是有效的任务对象' } }
+  }
+  // 新增必须带 id（理由见契约：「云端生成 id」会造成本地孤儿 + 云端孤儿）
+  if (!('id' in raw) || typeof raw.id !== 'string' || raw.id === '') {
+    return { reject: { index, field: 'id', reason: '新增任务必须带 id' } }
+  }
+  if (!ID_FORMAT.test(raw.id)) {
+    return { reject: { index, field: 'id', reason: '任务编号格式不对' } }
+  }
+
+  const item = { index, id: raw.id, purge: raw.purge === true, provided: {}, corrected: false }
+  const markCorrected = () => {
+    item.corrected = true
+  }
+
+  // ── title：出现就跑校验（新增和修改都跑）──────────────────
+  // 🔴 契约里的坑：第一版只写了「新增时」，修改路径直接漏了，
+  //    { id, title: '   ' } 会把空串写进库（text not null 拦不住空串）。
+  if ('title' in raw) {
+    if (typeof raw.title !== 'string') {
+      return { reject: { index, field: 'title', reason: '任务标题不能为空' } }
+    }
+    const t = raw.title.trim()
+    if (t === '') {
+      return { reject: { index, field: 'title', reason: '任务标题不能为空' } }
+    }
+    if (t.length > TITLE_MAX) {
+      return {
+        reject: { index, field: 'title', reason: `任务标题太长了（最多 ${TITLE_MAX} 字）` },
+      }
+    }
+    // 首尾空格统一去掉再入库 —— 判重用「精确匹配 title」才等价于「去空格后相同」
+    if (t !== raw.title) markCorrected()
+    item.provided.title = t
+  }
+
+  // ── dueAt：解析不出就**拒**（兜底成 null 会让任务静默排到最后）──
+  if ('dueAt' in raw) {
+    const v = raw.dueAt
+    if (v === null || v === undefined) {
+      item.provided.due_at = null
+    } else if (typeof v !== 'string') {
+      item.provided.due_at = null
+      markCorrected()
+    } else {
+      const d = new Date(v)
+      if (Number.isNaN(d.getTime())) {
+        return { reject: { index, field: 'dueAt', reason: '截止时间格式不对' } }
+      }
+      item.provided.due_at = d.toISOString()
+    }
+  }
+
+  // ── estimateMinutes：类型不对/0/负数 → null；小数 → 四舍五入 ──
+  if ('estimateMinutes' in raw) {
+    const v = raw.estimateMinutes
+    if (v === null || v === undefined) {
+      item.provided.estimate_minutes = null
+    } else if (typeof v !== 'number' || !Number.isFinite(v) || v <= 0) {
+      item.provided.estimate_minutes = null
+      markCorrected()
+    } else {
+      const rounded = Math.round(v)
+      if (rounded !== v) markCorrected()
+      item.provided.estimate_minutes = rounded
+    }
+  }
+
+  // ── importance：越界/非数字 → 夹到 1–5 ────────────────────
+  if ('importance' in raw) {
+    const v = raw.importance
+    if (typeof v !== 'number' || !Number.isFinite(v)) {
+      item.provided.importance = 3
+      markCorrected()
+    } else {
+      const clamped = Math.min(5, Math.max(1, Math.round(v)))
+      if (clamped !== v) markCorrected()
+      item.provided.importance = clamped
+    }
+  }
+
+  // ── status：非法值 → 'todo' ──────────────────────────────
+  if ('status' in raw) {
+    if (STATUS_SET.has(raw.status)) {
+      item.provided.status = raw.status
+    } else {
+      item.provided.status = 'todo'
+      markCorrected()
+    }
+  }
+
+  // ── createdAt：受保护字段 ─────────────────────────────────
+  // 修改时一律忽略、用库里的真值（在 buildRow 里体现）；新增时采纳，
+  // 解析不出就用服务器时间（只是展示顺序的依据，猜错没后果 —— 与 dueAt 相反）。
+  if ('createdAt' in raw) {
+    const d = new Date(raw.createdAt)
+    if (typeof raw.createdAt === 'string' && !Number.isNaN(d.getTime())) {
+      item.createdAtProvided = d.toISOString()
+    } else {
+      markCorrected()
+    }
+  }
+
+  // ── deletedAt：非空且解析不出 → 拒 ────────────────────────
+  if ('deletedAt' in raw) {
+    const v = raw.deletedAt
+    if (v === null || v === undefined) {
+      item.provided.deleted_at = null
+    } else if (typeof v !== 'string') {
+      return { reject: { index, field: 'deletedAt', reason: '删除时间格式不对' } }
+    } else {
+      const d = new Date(v)
+      if (Number.isNaN(d.getTime())) {
+        return { reject: { index, field: 'deletedAt', reason: '删除时间格式不对' } }
+      }
+      item.provided.deleted_at = d.toISOString()
+    }
+  }
+
+  // ── seq / userId：受保护，一律忽略（连记都不记，避免被人误用）──
+  return { item }
+}
+
+/**
+ * 把「判定通过的一条」拼成要写库的整行。
+ *
+ * 🔴 为什么修改时也用整行写：upsert 是一条语句，INSERT 分支需要所有 NOT NULL 列
+ *    （title / created_at 没有默认值）。用库里的现值补齐，UPDATE 分支就是「写回原值」，
+ *    语义等价于契约的「只更新出现过的字段」，但少了一半代码。
+ * 🔴 `seq` 永远不在这里出现 —— 它只能由数据库序列给。
+ */
+function buildRow(c, cur, userId) {
+  const now = new Date().toISOString()
+  const pick = (key, curKey, fallback) =>
+    key in c.provided ? c.provided[key] : cur ? cur[curKey] : fallback
+
+  const row = {
+    id: c.id,
+    user_id: userId,
+    title: pick('title', 'title', null),
+    due_at: pick('due_at', 'due_at', null),
+    estimate_minutes: pick('estimate_minutes', 'estimate_minutes', null),
+    importance: pick('importance', 'importance', 3),
+    status: pick('status', 'status', 'todo'),
+    created_at: cur ? cur.created_at : c.createdAtProvided || now,
+    deleted_at: pick('deleted_at', 'deleted_at', null),
+    purged_at: cur ? cur.purged_at : null,
+  }
+  if (c.purge) row.purged_at = now // 彻底删除 = 打墓碑，行保留
+  return row
+}
+
+/** 把数组切成每批 n 个（PostgREST 的 in.(…) 不能太长）。 */
+function chunk(arr, n) {
+  const out = []
+  for (let i = 0; i < arr.length; i += n) out.push(arr.slice(i, i + n))
+  return out
+}
+
+
 // ⚠️ 仅供本机验证脚本读取（用真 PostgreSQL 引擎跑一遍游标/notice 分支）。
 //    不参与运行时逻辑，删掉也不影响云函数。
 //    🔴 那三句 SQL 现在只是链式调用的**等价写法**，运行时不再执行它们 ——
@@ -465,6 +869,13 @@ exports.__test__ = {
   SQL_LIST_SINCE,
   SQL_MAX_SEQ,
   PAGE_SIZE,
+  COLUMNS,
+  MAX_BATCH,
+  TITLE_MAX,
+  ID_FORMAT,
+  judgeOne,
+  buildRow,
+  chunk,
   toTaskDto,
   toIso,
   readHeader,

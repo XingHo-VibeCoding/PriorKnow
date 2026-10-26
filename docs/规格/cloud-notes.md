@@ -220,3 +220,60 @@
 - ⬜ **确认没开按量计费** —— ✅ **已确认不需要担心**：
   体验版「不支持加购资源包和开启按量付费」，控制台上没有这个开关，**不可能被自动扣费**
 - ⬜ **Day 26 资源检查** —— 先看「静态托管流量」这一项
+
+---
+
+## 十二、Day 18 补：两条必须会的运维命令（本来以为没有）
+
+Day 18 部署 POST 时连撞两个坑，都是"以为做不到、其实 CLI 一直支持"：
+
+### 1. `tcb db execute` —— 命令行直接执行 SQL
+
+以前一直以为改库只能进控制台 SQL 编辑器，**其实 CLI 3.8.5 就有**：
+
+```bash
+tcb db execute -e priorknow-d0go4uh2uc0f62465 --sql "SELECT 1"
+tcb db execute -e <envId> --json --sql "SELECT ..."      # JSON 输出，方便脚本处理
+tcb db execute -e <envId> --role postgres --sql "..."    # 指定角色
+```
+
+- **支持多语句**（用 `;` 隔开），也支持 `DO $$ ... $$` 块（`$` 在 bash 里要转义成 `\$`）。
+- `--json` 的返回是 `{data:{Columns, Rows, AffectedRows, ExecutionTimeMs}}`，
+  `Rows` 里每一行是**一个 JSON 字符串**（不是对象），要再 parse 一次。
+- ⚠️ 它**不走云函数、不需要函数凭证**，是环境级管理通道 → 以后建表/改权限/查数据都不用开控制台了。
+- 但**上线后仍禁止执行 `db/seed.sql`**（会清数据），这条纪律不变。
+
+### 2. `tcb logs search` —— 真正能用的日志命令
+
+🔴 **`tcb fn log` 在本环境是坏的**：无论加不加 `-e`、加不加时间窗，一律返回
+`No invocation logs`，而实际**有**调用。别在它上面浪费时间。
+
+能用的那条：
+
+```bash
+tcb logs search -e <envId> --limit 20
+tcb logs search -e <envId> -q 'function_name:"api-health" AND log:"写入失败"'
+```
+
+- ⚠️ `tcb fn log -e` 里的 `-e` 是 **"--error 只看错误日志"**，**不是环境 id**；
+  环境 id 要用 `-e/--env-id`（两个命令的短选项撞车，很容易搞错）。
+- 返回里有 `log`（日志正文）和 `ret_msg`（函数返回值），**排错时两个都要看**。
+
+### 3. 本次真正撞上的坑：`anon` 角色没有写权限
+
+| 现象 | POST 返回 500，函数日志 `permission denied for table tasks`（`42501` / HTTP 401） |
+|---|---|
+
+实测权限（`information_schema.role_table_grants`）：
+
+| 角色 | tasks 表权限 |
+|---|---|
+| `anon` | **只有 SELECT** ← 云函数的凭证被映射成这个角色 |
+| `authenticated` | 全权 |
+| `service_role` | 全权 |
+
+- 🔴 **云函数用 `getClientCredential()` 调用 `app.rdb()`，落到的是 `anon`**，不是 `service_role`。
+- 🔴 根因是 Day 16 的 `schema.sql` **只建结构、一句 GRANT 都没写**（默认 `public` schema 给 PUBLIC 授了 SELECT），
+  所以 Day 17 的 GET 一直通、洞被盖住了。
+- 修复见 `db/migrate-02-grant-write.sql`（只给 `anon` 补 SELECT/INSERT/UPDATE/DELETE + 序列权限）。
+- 🔴 **identity / serial 列背后的 SEQUENCE 要单独授权**，给表授 INSERT 不会自动给序列权限。
