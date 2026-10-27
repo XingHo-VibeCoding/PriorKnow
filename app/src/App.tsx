@@ -20,6 +20,7 @@ import { Route, Routes } from 'react-router-dom'
 import { ActionToast } from './ui/ActionToast'
 import { AppNav } from './ui/AppNav'
 import { DevStateSwitch } from './ui/DevStateSwitch'
+import { FocusMode } from './ui/FocusMode'
 import { NotFoundPage } from './ui/NotFoundPage'
 import { TaskDetailPage } from './ui/TaskDetailPage'
 import { TasksPage } from './ui/TasksPage'
@@ -35,6 +36,12 @@ export function App() {
   // 本地库读一次只要几毫秒，这两种状态否则永远没人见过。
   // Day 13：状态仍然由 App 持有（三个视图共用同一份），但开关本身搬到了外壳上（见 DevStateSwitch）。
   const [dataMode, setDataMode] = useState<DataMode>('normal')
+
+  // PRD F7 专注模式：全屏覆盖层，盖住页头/导航/页脚。
+  // 状态放在外壳这一层，理由和提示条一样 —— 它必须活得比任何一页都久：
+  // 进了专注模式，地址栏还在 `/`，用户按浏览器的前进后退都不该把它弄丢；
+  // 一旦放进 TodayPage，切走视图它就会被卸载。
+  const [focusing, setFocusing] = useState(false)
 
   const queue = useTaskQueue(dataMode)
   const { refresh } = queue
@@ -73,7 +80,14 @@ export function App() {
       <Routes>
         <Route
           path="/"
-          element={<TodayPage queue={queue} notice={notice} onCreated={handleCreated} />}
+          element={
+            <TodayPage
+              queue={queue}
+              notice={notice}
+              onCreated={handleCreated}
+              onStartFocus={() => setFocusing(true)}
+            />
+          }
         />
         <Route
           path="/tasks"
@@ -98,6 +112,11 @@ export function App() {
         onRetry={queue.retryFeedback}
         onDismiss={queue.dismissFeedback}
       />
+
+      {/* 专注模式（PRD F7）。**放在提示条之后**，靠 DOM 顺序压在它上面：
+          专注时不希望提示条浮出来打断，完成/失败都由覆盖层自己说。
+          不想靠 DOM 顺序的话也可以给 z-index，但那样两处的层叠关系就分散在两个文件里了。 */}
+      {focusing && <FocusMode queue={queue} onExit={() => setFocusing(false)} />}
     </div>
   )
 }

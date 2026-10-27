@@ -39,9 +39,11 @@ interface TodayQueueProps {
   queue: TaskQueue
   /** 外面传来的一句话提示（比如「已加入 XXX」），显示在队列上方 */
   notice: string
+  /** 点队首卡片的「专注」→ 打开专注模式（PRD F7；状态放在外壳里，见 App.tsx） */
+  onStartFocus: () => void
 }
 
-export function TodayQueue({ queue, notice }: TodayQueueProps) {
+export function TodayQueue({ queue, notice, onStartFocus }: TodayQueueProps) {
   const { ranked, done, total, loaded, busy, busyTaskId, error, now, act, refresh, loadSamples, completeTask } =
     queue
 
@@ -290,6 +292,21 @@ export function TodayQueue({ queue, notice }: TodayQueueProps) {
               </div>
 
               <div className="queue-actions">
+                {/* PRD F7：只有队首那一张有「专注」入口 —— 专注模式的语义是
+                    「现在只做最该做的那一件」，第二张开始就不成立了。
+                    ⚠️ 判定用 rank（全队列名次）而不是 visible 的下标：
+                    筛过之后排在第一个的那件，不一定是全队列第一。 */}
+                {rank === 1 && (
+                  <button
+                    type="button"
+                    className="queue-focus"
+                    onClick={onStartFocus}
+                    disabled={busy}
+                    title="进入专注模式：只显示这一件 + 倒计时"
+                  >
+                    专注
+                  </button>
+                )}
                 <button
                   type="button"
                   className="queue-done"

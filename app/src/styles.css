@@ -720,6 +720,20 @@ body {
   color: var(--warn);
 }
 
+/* PRD F7：队首那张才有的「专注」入口。
+   给它和「完成」不一样的观感 —— 它不是「处理掉这件」，而是「进入另一层界面」。 */
+.queue-actions button.queue-focus {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.queue-actions button.queue-focus:hover:not(:disabled) {
+  background: var(--accent);
+  color: #ffffff;
+}
+
 /* ---- 三因子明细（点开卡片才出现） ---- */
 
 .factors {
@@ -1437,6 +1451,200 @@ a.state-action {
   }
 }
 
+/* ---- 专注模式（PRD F7）----
+ *
+ * 视觉目标只有一个：**把注意力收成一个点**。
+ * 所以背景压暗到只剩轮廓、卡片居中、除标题与计时之外一律弱化。
+ * 不做彩色渐变、不加装饰 —— 专注模式的敌人正是「还有别的东西可看」。 */
+
+.focus-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  /* 用半透明深色而不是纯黑：还能隐约看见下面是自己那一页，不会像跳到了另一个网站 */
+  background: rgba(28, 27, 31, 0.62);
+}
+
+.focus-panel {
+  width: min(560px, 100%);
+  padding: 36px 36px 28px;
+  border-radius: 18px;
+  background: var(--card);
+  box-shadow: 0 24px 60px rgba(28, 27, 31, 0.28);
+  text-align: center;
+}
+
+/* tabIndex=-1 只是为了「进入时把焦点收进来」，不需要焦点环 */
+.focus-panel:focus {
+  outline: none;
+}
+
+.focus-eyebrow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0 0 14px;
+  font-size: 13px;
+  letter-spacing: 1px;
+  color: var(--ink-faint);
+}
+
+.focus-hint {
+  letter-spacing: 0;
+  opacity: 0.8;
+}
+
+/* 计时数字：等宽（tabular-nums）才不会每秒左右抖动一下 —— 这是最容易忽略的一处
+   质感，数字一抖，整块面板看起来就在闪。 */
+.focus-clock {
+  margin: 0;
+  font-size: 76px;
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: 2px;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.focus-clock.is-over {
+  color: var(--warn);
+}
+
+.focus-bar {
+  height: 6px;
+  margin: 18px 0 10px;
+  border-radius: 999px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+.focus-bar span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--accent);
+  /* 每秒走 1 秒的匀速过渡，看起来像在走，而不是一秒跳一格 */
+  transition: width 1s linear;
+}
+
+.focus-note {
+  margin: 0 0 22px;
+  font-size: 13px;
+  color: var(--ink-faint);
+}
+
+.focus-task {
+  padding: 18px 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--paper);
+}
+
+.focus-title {
+  margin: 0 0 8px;
+  font-size: 22px;
+  line-height: 1.4;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.focus-why {
+  margin: 0 0 8px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--ink-soft);
+  overflow-wrap: anywhere;
+}
+
+.focus-score {
+  margin: 0;
+  font-size: 13px;
+  color: var(--ink-faint);
+}
+
+.focus-empty {
+  margin: 0 0 10px;
+  font-size: 24px;
+  color: var(--ink);
+}
+
+.focus-sub {
+  margin: 0 0 22px;
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--ink-soft);
+}
+
+/* 失败必须能被看见：这里的提示条被覆盖层挡着，不能只靠它 */
+.focus-error {
+  margin: 14px 0 0;
+  padding: 9px 12px;
+  border-radius: 9px;
+  background: var(--warn-soft);
+  color: var(--warn);
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.focus-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 24px;
+}
+
+.focus-actions button {
+  padding: 11px 20px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.focus-actions button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.focus-primary {
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.focus-primary:hover:not(:disabled) {
+  background: var(--accent-dark);
+  border-color: var(--accent-dark);
+}
+
+.focus-secondary {
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--ink);
+}
+
+.focus-secondary:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.focus-ghost {
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--ink-faint);
+}
+
+.focus-ghost:hover:not(:disabled) {
+  color: var(--ink);
+  background: var(--line);
+}
+
 /* ---- 窄屏 ----
  * PRD 第八节的验收标准要求：缩窄浏览器时**不出现横向溢出**。
  * 主要手段：竖排、把固定宽度放开、给长文本允许断行。 */
@@ -1570,5 +1778,34 @@ a.state-action {
   .toast-text {
     flex: 1 1 140px;
     min-width: 0;
+  }
+
+  /* 专注模式：76px 的计时数字在 375px 屏上会撑破面板，收到 48px。
+     ⚠️ 不能只收到 56px —— 超过一小时的任务显示成 `2:00:00`（多两位），
+     56px 时正好顶满 343px 面板的内宽 303px，一点余量都没有。 */
+  .focus-layer {
+    padding: 16px;
+  }
+
+  .focus-panel {
+    padding: 24px 20px 20px;
+    border-radius: 14px;
+  }
+
+  .focus-clock {
+    font-size: 48px;
+  }
+
+  .focus-title {
+    font-size: 19px;
+  }
+
+  .focus-actions {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .focus-actions button {
+    width: 100%;
   }
 }

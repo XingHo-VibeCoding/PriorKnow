@@ -19,9 +19,11 @@ interface TodayPageProps {
   notice: string
   /** 加任务成功后：给一句提示 + 让队列重读（触发自动重排） */
   onCreated: (note: string) => void
+  /** 点队首卡片的「开始专注」→ 打开专注模式（状态在外壳，见 App.tsx） */
+  onStartFocus: () => void
 }
 
-export function TodayPage({ queue, notice, onCreated }: TodayPageProps) {
+export function TodayPage({ queue, notice, onCreated, onStartFocus }: TodayPageProps) {
   return (
     <>
       <TodayBudget ranked={queue.ranked} loaded={queue.loaded} />
@@ -31,7 +33,7 @@ export function TodayPage({ queue, notice, onCreated }: TodayPageProps) {
         <TaskComposer onCreated={onCreated} />
       </section>
 
-      <TodayQueue queue={queue} notice={notice} />
+      <TodayQueue queue={queue} notice={notice} onStartFocus={onStartFocus} />
     </>
   )
 }
