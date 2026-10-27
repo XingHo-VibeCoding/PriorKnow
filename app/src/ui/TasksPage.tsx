@@ -18,6 +18,7 @@
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { taskRepo } from '../data'
+import { CloudSyncPanel } from './CloudSyncPanel'
 import { DataPanel } from './DataPanel'
 import { TaskComposer } from './TaskComposer'
 import type { TaskQueue } from './useTaskQueue'
@@ -201,6 +202,10 @@ export function TasksPage({ queue, notice, onCreated }: TasksPageProps) {
       </section>
 
       <DataPanel queue={queue} />
+
+      {/* 云端同步排在「数据与设置」之后：它管的是同一批数据的另一条去处（云端），
+          属于「本机数据管理」的自然延伸，不该跑到加任务/列表之前抢注意力。 */}
+      <CloudSyncPanel queue={queue} />
     </>
   )
 }

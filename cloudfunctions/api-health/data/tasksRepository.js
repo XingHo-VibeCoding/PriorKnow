@@ -154,8 +154,32 @@ async function findByIds(ids, userId) {
   return found
 }
 
-/** ⑤ 判重：同区、未完成、未进回收站、title 去掉首尾空格后相同的那些标题。 */
-async function findDuplicateTitles(titles, userId) {
+/**
+ * ⑤ 查这些 id 在**全表**里分别属于谁 → Map<id, user_id>
+ *
+ * 🔴 为什么要单独查一次（Day 19 实测踩出来的洞）：
+ *    `id` 是**全局主键**，但 ④ 的 findByIds 带 `user_id` 过滤。
+ *    于是「别的区已经有一条同 id 的行」在本区看起来等于「不存在」→ 走新增分支 →
+ *    `INSERT … ON CONFLICT (id) DO UPDATE` 会连 `user_id` 一起覆盖，
+ *    **等于把别人的任务整条搬到自己名下**（内容也一起被改掉）。
+ *
+ *    线上真实踩过：前端推送一份「固定 id 的示例数据」到另一个用户区，
+ *    原来那 7 行整体消失、出现在了新区里，而且接口回的是 201 成功。
+ *
+ *    所以「本区没有」还不够，必须再确认「全表也没有别人的」。
+ *    ⚠️ 只在本区查不到的 id 上才查，正常新增（全新 id）时这一句是空转。
+ */
+async function findIdOwners(ids) {
+  const owners = new Map()
+  if (ids.length === 0) return owners
+  for (const batch of chunk(ids, IN_BATCH)) {
+    const rows = await queryAll(getDb().from('tasks').select('id,user_id').in('id', batch))
+    for (const r of rows) owners.set(r.id, r.user_id)
+  }
+  return owners
+}
+
+/** ⑥ 判重：同区、未完成、未进回收站、title 去掉首尾空格后相同的那些标题。 */async function findDuplicateTitles(titles, userId) {
   const dup = new Set()
   const list = [...new Set(titles.filter(Boolean))]
   if (list.length === 0) return dup
@@ -176,7 +200,7 @@ async function findDuplicateTitles(titles, userId) {
 }
 
 /**
- * ⑥ 写入：一条 upsert 语句（PostgREST 的 INSERT … ON CONFLICT (id) DO UPDATE）。
+ * ⑦ 写入：一条 upsert 语句（PostgREST 的 INSERT … ON CONFLICT (id) DO UPDATE）。
  * 🔴 一次写完而不是逐条：一次请求 = 一条 SQL 语句 = 天然原子，
  *    这就是契约「在一个事务里写入全部 accepted」在 HTTP 接口下的等价实现。
  */
@@ -197,6 +221,7 @@ module.exports = {
   listSince,
   maxSeq,
   findByIds,
+  findIdOwners,
   findDuplicateTitles,
   upsertRows,
   chunk,

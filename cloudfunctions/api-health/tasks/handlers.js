@@ -185,8 +185,25 @@ async function handlePostTasks(event, rawHeaders) {
     }
 
     // purge 一个库里不存在的 id：没有行可以打墓碑，直接拒（不然会插进一行空壳）
+    //
+    // 🔴 还要先排掉「这个 id 在**别的区**里已经存在」的情况（Day 19 实测踩出来的洞）。
+    //    `id` 是全局主键，而上面 findByIds 带了 user_id 过滤 → 别人的行在本区看来
+    //    等于「不存在」→ 走新增分支 → upsert 的 ON CONFLICT 分支会连 user_id
+    //    一起覆盖，**把别人的任务整条搬到自己名下**，接口还回 201 成功。
+    //    文案沿用契约 404 那句「找不到这个任务」—— 不能回「它属于别人」，
+    //    那等于确认这个编号存在，泄露别人的数据有无（同契约「404 与 403 合并」的理由）。
+    const owners =
+      toInsert.length > 0
+        ? await tasksRepo.findIdOwners(toInsert.map((c) => c.id))
+        : new Map()
+
     const inserts = []
     for (const c of toInsert) {
+      const owner = owners.get(c.id)
+      if (owner !== undefined && owner !== userId) {
+        rejected.push({ index: c.index, field: 'id', reason: `找不到这个任务（编号 ${c.id}）` })
+        continue
+      }
       if (c.purge) {
         rejected.push({ index: c.index, field: 'id', reason: `找不到这个任务（编号 ${c.id}）` })
         continue

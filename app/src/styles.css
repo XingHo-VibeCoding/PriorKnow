@@ -1197,6 +1197,52 @@ a.state-action {
   color: var(--warn);
 }
 
+/* ---- 云端同步（试运行） ---- */
+
+/* 接口地址比用户编号长得多，所以竖排、各自撑满一行。
+   并排的话地址框只能分到一半宽度，会被截成「https://xxx.service.tclou」——
+   而填错地址正是这一块最常见的失败原因，看不全就没法核对。 */
+.sync-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sync-fields input {
+  width: 100%;
+}
+
+.sync-meta {
+  margin: 14px 0 0;
+  font-size: 13px;
+  color: var(--ink-soft);
+  overflow-wrap: anywhere;
+}
+
+.sync-meta strong {
+  color: var(--ink);
+}
+
+/* .btn-row 自己没有上边距（它平时跟在有下边距的 .hint 后面），
+   这里跟进来的是一条 .sync-meta，得补一点，否则按钮贴着文字。 */
+.sync-meta + .btn-row {
+  margin-top: 12px;
+}
+
+/* 逐条拒绝原因。用 --warn 而不是 --ink-soft：这是要用户动手改的东西，
+   不是背景说明。 */
+.sync-rejected {
+  margin: 10px 0 0;
+  padding-left: 20px;
+  font-size: 13px;
+  color: var(--warn);
+}
+
+.sync-rejected li {
+  margin: 4px 0;
+  overflow-wrap: anywhere;
+}
+
 /* Day 13：这个块原来住在「数据与设置」卡片里（类名 .dev，靠一条上边框与卡片内容分隔）。
    搬到页面外壳之后它自成一块、上面没有「上一块内容」可分隔，
    所以改成带虚线框的浅色条，自己把边界画出来。 */

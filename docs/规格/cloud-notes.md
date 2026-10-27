@@ -351,3 +351,78 @@ curl.exe -s -X POST "https://priorknow-d0go4uh2uc0f62465.service.tcloudbase.com/
   -d '[{"id":"ps-test-01","title":"PowerShell 发的一条"}]'
 ```
 
+
+---
+
+## 十四、Day 19 补：前端第一次真的调接口，踩出来一个数据丢失洞
+
+### 背景
+
+第 3 周做完了云函数，但**前端一次都没调过它** —— 之前所有验收都是 `curl` 发的。
+「前端两层校验都生效」这句话当时只有代码上的依据，没有证据。
+所以补了一块「云端同步（试运行）」：`app/src/data/cloud-sync.ts` + `app/src/ui/CloudSyncPanel.tsx`，
+真浏览器、真请求、真库。
+
+### 🔴 洞：跨区同 `id` 会把别人的整条任务搬走
+
+**怎么发现的**：验证时用 `demo-user-002` 推一份「载入示例数据」造出来的 7 条任务
+（`sample-01`…`sample-07`，id 是写死的）。推完接口回 `201 accepted`。
+然后查库发现：**`demo-user-001` 的那 7 条不见了，`demo-user-002` 多了 7 条 —— id 完全一样。**
+
+**根因链条**（三句就能说清，但每一句单独看都「没问题」）：
+
+1. `id` 是**全局主键**；
+2. `findByIds(ids, userId)` 带了 `user_id` 过滤 → 别人的行在本区看来**等于不存在**；
+3. 「不存在」→ 走插入分支 → `INSERT … ON CONFLICT (id) DO UPDATE` 的冲突分支
+   把**整行连同 `user_id`** 一起覆盖 → 行换了主人。
+
+**为什么会回 201 而不是报错**：因为整条链路上没有一步认为这是异常。
+这正是它危险的地方 —— 静默、无日志、无告警，用户 A 只会发现自己的任务消失了。
+
+**修法**（`tasks/handlers.js` ⑤ 之前）：
+
+```js
+const owners = toInsert.length > 0
+  ? await tasksRepo.findIdOwners(toInsert.map((c) => c.id))   // 不带 user_id 过滤，查全表
+  : new Map()
+// 有主但主人不是本区 → 拒
+if (owner !== undefined && owner !== userId) {
+  rejected.push({ index: c.index, field: 'id', reason: `找不到这个任务（编号 ${c.id}）` })
+}
+```
+
+- ⚠️ 只在「本区查不到的 id」上才多查一次，正常新增（全新 id）时是空转。
+- ⚠️ 文案必须用「找不到这个任务」，**不能**写「它属于别的用户」——
+  后者等于确认这个编号存在（与契约「404 与 403 合并」同一个理由）。
+- ⚠️ 代价：用户真换了 `user_id`（换账号/换身份），旧行会全部推不上去。
+  这是**故意选的**：搬走别人的行比推不上去坏得多。
+
+回归用例在 `verify-post-tasks.cjs` 第 ⑧ 组（7 项）：别人抢不走、条数不变、
+归属不变、内容不变、同区重推仍按「修改」处理。
+
+### ⚠️ 测试时的坑：别用固定 id 的示例数据跨区推
+
+`sample-01`…`sample-07` 是**写死的 id**，所以它们天然会撞主键。
+做跨区测试要么换一批全新 id，要么先用 SQL 清掉目标区：
+
+```
+tcb db execute -e priorknow-d0go4uh2uc0f62465 --sql "DELETE FROM tasks WHERE user_id='demo-user-002';"
+```
+
+同区重跑也要清 —— 不清的话第二次会撞「相同标题的待办已经存在」（409），
+看起来像 bug，其实是判重按设计工作了。
+
+### 📌 顺带确认的两条
+
+1. **CORS 不用配也能用**：CloudBase 网关会把请求里的 `Origin` 原样回给
+   `access-control-allow-origin`，并带 `access-control-allow-credentials: true`。
+   本地 `http://localhost:5173` 直连云函数地址**没有跨域问题**（实测 OPTIONS → 204，
+   带了 `allow-headers: content-type,x-user-id`）。所以不需要 Vite 代理。
+2. **`POST` 的 `cursor` 不能当 `since`**（已写进契约第七节）。
+   它是「本区最大 seq」，直接当游标会跳过「别的设备写在它之前、本机还没拉」的记录。
+   本地游标只由 `GET` 返回的 `cursor` 推进。
+
+### 慢的时候有多慢
+
+冷启动后第一次 POST 实测 **2.9–4.0 秒**（`x-cloudbase-upstream-timecost: 4053`）。
+前端超时给到 90 秒，别按「几百毫秒」设计。
