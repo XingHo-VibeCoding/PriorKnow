@@ -277,3 +277,77 @@ tcb logs search -e <envId> -q 'function_name:"api-health" AND log:"写入失败"
   所以 Day 17 的 GET 一直通、洞被盖住了。
 - 修复见 `db/migrate-02-grant-write.sql`（只给 `anon` 补 SELECT/INSERT/UPDATE/DELETE + 序列权限）。
 - 🔴 **identity / serial 列背后的 SEQUENCE 要单独授权**，给表授 INSERT 不会自动给序列权限。
+
+---
+
+## 十三、本机命令一律按 PowerShell 写（不要给 bash 语法）
+
+🔴 **踩过的坑**：Day 19 我给的项目检查命令是 bash 语法，在他机器上直接报
+`ParserError: 循环中缺少语句体 do`。他的终端是 **pwsh 7** —— **不是 bash，
+给他复制粘贴的命令必须按 PowerShell 写。**
+
+### 13.1 语法对照（bash → PowerShell）
+
+| 想干什么 | ❌ bash 写法 | ✅ PowerShell 写法 |
+|---|---|---|
+| 续行 | 行尾 `\` | 行尾反引号 `` ` ``（**后面不能有空格**） |
+| 管道后遍历 | `\| while read f; do … done` | `\| ForEach-Object { … }` |
+| 数行数 | `wc -l` | `(Get-Content $f -Encoding UTF8).Count` |
+| 找文件 | `find . -name "*.js"` | `Get-ChildItem -Recurse -Filter *.js` |
+| 搜内容 | `grep -n "x" f` | `Select-String -Path f -Pattern "x"` |
+| 串联命令 | `A && B` | pwsh 7 支持 `&&`；5.1 不支持（用 `;` 或 `if ($?) { }`） |
+| HTTP 请求 | `curl -s -w …` | **必须写 `curl.exe`** —— 5.1 里 `curl` 是 `Invoke-WebRequest` 的别名，参数完全不同 |
+
+### 13.2 🔴 `Get-Content` 的编码坑（会算错行数）
+
+PowerShell 5.1 的 `Get-Content` **默认按系统 ANSI（中文环境是 GBK）解码**，
+而我们的文件是 **UTF-8 无 BOM**。GBK 是双字节编码，遇到 UTF-8 的中文字节时
+会把紧随其后的 `\n` 当成"第二个字节"吃掉 → **行数少算**。
+
+实测：`index.js` 真实 **211 行**，`Get-Content` 不带 `-Encoding` 算出来是 **152 行**。
+
+- ✅ 一律写 `Get-Content $f -Encoding UTF8`
+- pwsh 7 默认就是 UTF-8，写上也无害 —— 这条命令在 5.1 / 6 / 7 上都对
+
+### 13.3 四条常用命令（可直接复制）
+
+**① 云函数的文件结构与行数**（Day 19 打卡图一用这条）
+
+```powershell
+$root = "$PWD\cloudfunctions\api-health"
+Get-ChildItem $root -Recurse -Filter *.js |
+  Where-Object FullName -notlike '*node_modules*' |
+  Sort-Object FullName |
+  ForEach-Object {
+    $rel = $_.FullName.Substring($root.Length + 1)
+    '{0,4} 行  {1}' -f (Get-Content $_.FullName -Encoding UTF8).Count, $rel
+  }
+```
+
+**② 证明查询已经被关进数据层**（`from('tasks')` 只该出现在 `data\` 下）
+
+```powershell
+$root = "$PWD\cloudfunctions\api-health"
+Get-ChildItem $root -Recurse -Filter *.js | Where-Object FullName -notlike '*node_modules*' |
+  Select-String -Pattern "from\('tasks'\)" |
+  ForEach-Object { $_.Path.Substring($root.Length + 1) + "  第 " + $_.LineNumber + " 行" }
+```
+
+**③ GET 接口（带自定义头）**
+
+```powershell
+curl.exe -s -w '`nHTTP %{http_code}`n' -H "X-User-Id: demo-user-001" `
+  "https://priorknow-d0go4uh2uc0f62465.service.tcloudbase.com/api/tasks"
+```
+
+⚠️ `-w` 里的换行：**单引号**包住时写 `\n` 会被 curl 原样收到（可用）；
+**双引号**包住时 PowerShell 会先解析，要写反引号 `` `n ``。两种都行，别混着来。
+
+**④ POST 接口** —— 外层用**单引号**，里面 JSON 的双引号才不会被 PowerShell 吃掉：
+
+```powershell
+curl.exe -s -X POST "https://priorknow-d0go4uh2uc0f62465.service.tcloudbase.com/api/tasks" `
+  -H "Content-Type: application/json" -H "X-User-Id: demo-user-001" `
+  -d '[{"id":"ps-test-01","title":"PowerShell 发的一条"}]'
+```
+
