@@ -22,7 +22,7 @@
 // ⚠️ 这个文件不碰 IndexedDB，只认 data/ 出口的接口；算分全走 core/。
 //   读库与写操作都从 useTaskQueue 来 —— 预算条和数据面板用的是同一份状态。
 
-import { useState } from 'react'
+import { useLayoutEffect, useRef, useState } from 'react'
 import { taskRepo } from '../data'
 import type { QueueEntry } from '../core/priorityQueue'
 import type { Task } from '../core/types'
@@ -78,6 +78,83 @@ export function TodayQueue({ queue, notice, onStartFocus }: TodayQueueProps) {
       if (stars !== 'all' && entry.task.importance !== Number(stars)) return false
       return true
     })
+
+  // ---------- F4：队列重排动画 ----------
+  //
+  // 用 FLIP（First → Last → Invert → Play）：
+  //   ① 上一帧记下每张卡片的纵坐标（Before）；
+  //   ② 这次渲染完再读一遍（After）；
+  //   ③ 先用 transform 把卡片**挪回**原来的位置（Invert，此帧用户看不见）；
+  //   ④ 下一帧把 transform 清掉，让 CSS 从「原位」过渡到「新位」（Play）。
+  //
+  // 为什么不直接给 top 加 transition：卡片是普通文档流里的 li，
+  // 位置由内容撑开，没有可补间的数值属性。transform 是唯一便宜又能合成到 GPU 的做法。
+  //
+  // ⚠️ 为什么依赖的是一个字符串指纹而不是 visible 数组：
+  //    visible 每次渲染都是新数组，依赖它会让这个 effect 每帧都跑一遍，
+  //    每次都读一遍全部卡片的布局 → 白白触发重排，列表越长越卡。
+  //    真正决定「要不要动画」的只有一件事：**顺序（或成员）有没有变**。
+  const listRef = useRef<HTMLOListElement>(null)
+  const lastTops = useRef<Map<string, number>>(new Map())
+  const layoutKey = visible.map(({ entry }) => entry.task.id).join('|')
+
+  useLayoutEffect(() => {
+    const list = listRef.current
+    if (list === null) return
+
+    const cards = Array.from(list.querySelectorAll<HTMLElement>('[data-task-id]'))
+    const previous = lastTops.current
+    const current = new Map<string, number>()
+
+    // 系统里开了「减少动态效果」就只记录位置、不播动画。
+    // 动效是锦上添花，不该让对动效敏感的人难受。
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
+    for (const card of cards) {
+      const id = card.dataset.taskId ?? ''
+      // ⚠️ 用 offsetTop 而不是 getBoundingClientRect().top：
+      //    rect 是**视口**坐标，用户中途滚一下页面就会整体偏移，
+      //    于是下一帧算出来的 delta 是一整段滚动距离 —— 卡片会莫名其妙地飞一下。
+      //    offsetTop 是布局坐标，和滚动无关。
+      const top = card.offsetTop
+      current.set(id, top)
+
+      const old = previous.get(id)
+      // old 不存在 = 这张卡是刚出现的（新加 / 撤销回来），没有「原来在哪」可言，
+      // 让它直接出现在终点位置；硬要动画就得编一个起点，反而更乱。
+      if (reduceMotion || old === undefined) continue
+
+      const delta = old - top
+      if (Math.abs(delta) < 1) continue // 没动，别白设一遍样式
+
+      card.style.transition = 'none'
+      card.style.transform = `translateY(${delta}px)`
+      card.style.willChange = 'transform'
+      // 往下走的卡片压在上面那一张之下，看起来才像真的在队列里让位
+      card.style.zIndex = delta > 0 ? '1' : '2'
+
+      // 强制一次样式计算。少了这一行，浏览器会把「改 transform」和「开 transition」
+      // 合并进同一帧 —— 它看到的起点和终点是同一个值，动画根本不会播（最常见的一个坑）。
+      void card.offsetHeight
+
+      card.style.transition = 'transform 320ms cubic-bezier(0.22, 1, 0.36, 1)'
+      card.style.transform = ''
+
+      const cleanup = () => {
+        card.style.transition = ''
+        card.style.transform = ''
+        card.style.willChange = ''
+        card.style.zIndex = ''
+        card.removeEventListener('transitionend', cleanup)
+      }
+      card.addEventListener('transitionend', cleanup)
+      // 兜底：卡片在动画中途被卸载（或 transitionend 没触发）时样式也不会留脏
+      window.setTimeout(cleanup, 400)
+    }
+
+    lastTops.current = current
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [layoutKey])
 
   // Day 11：完成不再直接写库，而是走 useTaskQueue 里的 completeTask ——
   // 它写完之后会浮出一条可撤销的提示条（见 ActionToast）。
@@ -232,7 +309,7 @@ export function TodayQueue({ queue, notice, onStartFocus }: TodayQueueProps) {
           </button>
         </div>
       ) : (
-        <ol className="queue">
+        <ol className="queue" ref={listRef}>
         {visible.map(({ entry, rank }) => {
           const open = openId === entry.task.id
           const overdue = isOverdue(entry.task, now)
@@ -243,6 +320,7 @@ export function TodayQueue({ queue, notice, onStartFocus }: TodayQueueProps) {
           return (
             <li
               key={entry.task.id}
+              data-task-id={entry.task.id}
               className={[
                 'queue-card',
                 entry.priority.isUrgent ? 'is-urgent' : 'not-urgent',
