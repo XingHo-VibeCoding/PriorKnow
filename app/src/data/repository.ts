@@ -14,6 +14,34 @@
 import type { Task, TaskInput, TaskPatch } from '../core/types'
 
 /**
+ * 一条「从云端拉回来」的任务（Day 20 加）。
+ *
+ * 比本机 Task 多两个同步专用字段：`deletedAt`（软删除）和 `purgedAt`（彻底删除的墓碑）。
+ * 本机 Task 不带它们 —— 本机的「删除」就是真删。
+ *
+ * 刻意**不 import cloud-sync 的 RemoteTask**：那会让「数据层接口」反过来依赖网络客户端。
+ * 这里只声明自己需要的最小形状，`RemoteTask` 天然满足它（结构类型）。
+ */
+export interface RemoteTaskIn {
+  id: string
+  title: string
+  dueAt: string | null
+  estimateMinutes: number | null
+  importance: number
+  status: Task['status']
+  createdAt: string
+  deletedAt: string | null
+  purgedAt: string | null
+}
+
+/** applyRemote 的收尾统计，界面上要报给用户看 */
+export interface ApplyRemoteResult {
+  inserted: number
+  updated: number
+  removed: number
+}
+
+/**
  * 任务仓储接口。
  *
  * ⚠️ 所有方法都返回 Promise（都要 await），**即使本地实现其实可以同步返回**。
@@ -46,4 +74,19 @@ export interface TaskRepository {
 
   /** 导入并覆盖全部任务。⚠️ 会清掉原有数据，调用前必须让用户确认 */
   importAll(tasks: Task[]): Promise<void>
+
+  /**
+   * 把云端拉回来的变化写进本地库（Day 20 加）。
+   *
+   * 语义：**远端为准，逐条落地**。
+   *   · 本地没有这个 id   → 插入（保留远端的 id，不能自己另生成一个，
+   *                          否则下次同步会认为是两条不同的任务）
+   *   · 本地已有这个 id   → 整条覆盖
+   *   · 远端带 deletedAt / purgedAt → 本地直接删掉
+   *
+   * 🔴 这不是「双向合并」。它不比较两边的修改时间、不保护本地还没推上去的改动，
+   *    也不处理「两边都改过」。真正的合并（谁赢、离线时先记哪）还没做。
+   *    现在这一版的目标只有一个：让公网页面上**看得见云端的数据**。
+   */
+  applyRemote(tasks: RemoteTaskIn[]): Promise<ApplyRemoteResult>
 }

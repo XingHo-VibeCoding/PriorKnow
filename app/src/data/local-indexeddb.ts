@@ -10,7 +10,7 @@
 
 import Dexie, { type EntityTable } from 'dexie'
 import { DEFAULT_IMPORTANCE, type Importance, type Task, type TaskInput, type TaskPatch } from '../core/types'
-import type { TaskRepository } from './repository'
+import type { ApplyRemoteResult, RemoteTaskIn, TaskRepository } from './repository'
 
 /**
  * 数据库本体。
@@ -120,6 +120,59 @@ export class IndexedDbTaskRepository implements TaskRepository {
         await this.db.tasks.bulkAdd(normalized)
       }
     })
+  }
+
+  /**
+   * 把云端拉回来的变化落地（Day 20）。
+   *
+   * 整批放进**一个事务**：中途出错就一条都不写，不会留下「写了一半」的库。
+   *
+   * ⚠️ 和 importAll 的区别能救命：importAll 是**清空重建**（会毁掉本地还没推上去的东西），
+   *    这个是**按 id 逐条落**，别的地方的任务一根毫毛都不动。
+   */
+  async applyRemote(tasks: RemoteTaskIn[]): Promise<ApplyRemoteResult> {
+    let inserted = 0
+    let updated = 0
+    let removed = 0
+
+    await this.db.transaction('rw', this.db.tasks, async () => {
+      for (const remote of tasks) {
+        const existing = await this.db.tasks.get(remote.id)
+
+        // 远端说这条没了（软删或墓碑）→ 本地跟着删。
+        // 本机没有「回收站」的概念，删除就是真删，所以两种删除在这里汇成一条路。
+        if (remote.purgedAt !== null || remote.deletedAt !== null) {
+          if (existing) {
+            await this.db.tasks.delete(remote.id)
+            removed += 1
+          }
+          continue
+        }
+
+        // 标题是唯一的硬约束。远端理论上已经校验过，但这里再兜一道：
+        // 写不进去就别写，不要为了一条脏数据把整批都回滚。
+        const title = remote.title.trim()
+        if (!title) continue
+
+        const next: Task = {
+          id: remote.id,
+          title,
+          dueAt: remote.dueAt,
+          estimateMinutes: remote.estimateMinutes,
+          importance: clampImportance(remote.importance),
+          status: remote.status,
+          // createdAt 缺失时：本地有过就用本地的，都没有才用当下 —— 别让「创建时间」
+          // 因为同步一次就跳成今天，那会让队列顺序莫名其妙地变。
+          createdAt: remote.createdAt || existing?.createdAt || new Date().toISOString(),
+        }
+
+        await this.db.tasks.put(next)
+        if (existing) updated += 1
+        else inserted += 1
+      }
+    })
+
+    return { inserted, updated, removed }
   }
 }
 

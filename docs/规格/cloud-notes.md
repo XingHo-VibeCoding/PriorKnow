@@ -414,10 +414,12 @@ tcb db execute -e priorknow-d0go4uh2uc0f62465 --sql "DELETE FROM tasks WHERE use
 
 ### 📌 顺带确认的两条
 
-1. **CORS 不用配也能用**：CloudBase 网关会把请求里的 `Origin` 原样回给
-   `access-control-allow-origin`，并带 `access-control-allow-credentials: true`。
-   本地 `http://localhost:5173` 直连云函数地址**没有跨域问题**（实测 OPTIONS → 204，
-   带了 `allow-headers: content-type,x-user-id`）。所以不需要 Vite 代理。
+1. **CORS 不用配也能用 —— 但机制不是「反射任意 Origin」**（10-28 修正）。
+   网关按**安全域名名单**决定回不回 `access-control-allow-origin`：
+   名单内的（`localhost:*`、已登记的自有静态托管域名）→ 回；名单外的 → 也回 204，
+   但**不带 `allow-origin`**，浏览器照样拦。名单用 `tcb cors list -e <envId>` 查。
+   本地 `http://localhost:5173` 直连云函数地址**没有跨域问题**，不需要 Vite 代理。
+   ⚠️ **判断通没通看响应头里有没有 `allow-origin`，不看状态码** —— 被拒也是 204。
 2. **`POST` 的 `cursor` 不能当 `since`**（已写进契约第七节）。
    它是「本区最大 seq」，直接当游标会跳过「别的设备写在它之前、本机还没拉」的记录。
    本地游标只由 `GET` 返回的 `cursor` 推进。
@@ -426,3 +428,82 @@ tcb db execute -e priorknow-d0go4uh2uc0f62465 --sql "DELETE FROM tasks WHERE use
 
 冷启动后第一次 POST 实测 **2.9–4.0 秒**（`x-cloudbase-upstream-timecost: 4053`）。
 前端超时给到 90 秒，别按「几百毫秒」设计。
+
+---
+
+## 十五、Day 20：部署到公网，以及这一路上真正会绊人的三件事
+
+### 1. 部署本身（两条命令，别加参数）
+
+```bash
+cd app && npm run build
+tcb hosting deploy ./app/dist "/" -e priorknow-d0go4uh2uc0f62465
+```
+
+- **不加 `--safe` / `--verify`**：会误报失败并回滚。
+- 🔴 Git Bash 下 `"/"` 会被 MSYS 换成 `C:/Program Files/...` —— 报
+  `No files found under path "C:/Program Files/WorkBuddy/..."` 就是这个原因。
+  必须加 `MSYS_NO_PATHCONV=1` 或改用 PowerShell。
+- 部署只是**覆盖同名文件**，不会删旧产物。旧的 `assets/index-xxxx.js` 会一直堆着，
+  手动 `tcb hosting delete "/assets/index-<hash>.js"` 清掉。
+  ⚠️ 顺序：**先传新的、等 CDN 切到新 index.html，再删旧的**，否则中间那几分钟
+  旧 index.html 会指向已删的 JS，页面白屏。
+- 判线上生效：`curl -H "Cache-Control: no-cache" <host>/index.html | grep assets/`，
+  看 js 的 hash 换了没有。**不要用 `tcb hosting list` 的时间戳当证据**（那是上传时间）。
+
+### 2. 🔴 刷新 `/tasks` 404 —— 静态托管不做 History 回退
+
+静态托管只认文件路径：地址栏是 `/tasks` 就去桶里找 `tasks` 这个文件，找不到回 404，
+**React 根本没机会启动**。CLI 里也没有任何「错误页 / 重写」配置项，走不通。
+
+解法是改用 **HashRouter**（`app/src/main.tsx`，一行）：`#` 之后的内容浏览器不发给服务器，
+服务器永远只看到 `/`，永远回 `index.html`。代价是地址多一个 `#`（`/#/tasks`）。
+
+验证过了：`/#/tasks` 上刷新、直接分享深链都能打开。
+
+### 3. 🔴 中间页：`curl` 200、浏览器 404，跟跨域无关
+
+默认域名（`*.tcloudbaseapp.com`）**只对浏览器直访**展示「风险提醒」中间页，
+而且**状态码是 404**。判断依据是请求头 `Sec-Fetch-Mode: navigate` —— 所以：
+
+- `curl` 拿到 200（curl 不发这个头，也不像浏览器）
+- 浏览器拿到 404 + 一张要你点「确定访问」的页面
+
+这就是「curl 通、浏览器不通」的**第二种**成因（第一种是跨域）。
+区分方法：看**响应体**，中间页的 body 里写着「风险提醒」「测试域名」。
+
+中间页的实测细节：
+- 按钮上带倒计时「确定访问 (1s)」，**倒计时期间点它没反应**，要等括号消失再点。
+- 点一次之后在 Cookie 有效期内不再弹（官方文档原话）。
+- 🔴 **去掉中间页的唯一合规途径是绑一个已备案的自定义域名**，测试域名去不掉。
+  所以截图和分享链接都要接受「先点一次确定访问」。
+
+### 4. CORS：其实早就配好了
+
+`tcb cors list -e priorknow-d0go4uh2uc0f62465` 显示安全域名名单里第一条就是
+`priorknow-d0go4uh2uc0f62465-1489177462.tcloudbaseapp.com`（10-05 建环境时就有了）。
+
+所以「控制台配跨域」这一步**不是修 bug，是把隐式放行变成显式白名单**（本来就在名单里）。
+配完页面行为一点没变，是正常的。**不许填 `*`** —— 那等于拆掉同源策略。
+平台自带的 `tcb.cloud.tencent.com` 等条目是官方的，别删。
+
+### 5. 完成标准怎么验（脚本已写，结论在此）
+
+| 标准 | 验法 | 结果 |
+| --- | --- | --- |
+| 公网首页展示真库数据 | 干净 context 打开 → 首页 0 件（证明不来自本机）→ 配置后拉取 → 8 件 | ✅ |
+| 控制台改数据刷新跟着变 | SQL 改标题 → seq 推到 86 → 点拉取只回 1 条 → 新标题上屏 | ✅ |
+| F12 里请求地址是公网地址 | 抓包：`GET https://…service.tcloudbase.com/api/tasks?since=0` | ✅ |
+| 深链刷新不 404 | `/#/tasks` 刷新后仍渲染 | ✅ |
+| 控制台无报错 | 无 JS 运行时错误、无失败资源（favicon / 中间页除外） | ✅ |
+
+脚本在 `~/.workbuddy/binaries/node/workspace/verify-day20-public.mjs`（12 项）
+与 `verify-day20-roundtrip.mjs`（7 项），都不进仓库。
+
+### 6. 两个写脚本时踩的坑
+
+- 🔴 `tcb db execute` 把表格打在 **stderr** 上，只收 stdout 是空串 → 必须 `2>&1`。
+- 🔴 表格里有 **ANSI 颜色码**（`│` 和数字之间夹 `\x1b[39m`）→ 不剥掉正则永远匹配不上。
+  `raw.replace(/\x1b\[[0-9;]*m/g, '')`。
+- 🔴 直接 `goto` 到 `${HOST}#/tasks` 会白跑：中间页点「确定访问」后重定向回根路径，
+  hash 被丢掉。必须**先过闸、再点导航**。

@@ -5,9 +5,11 @@
 //   这一块管的是**网络**：可能慢、可能失败、可能被服务端拒绝。
 //   两者的失败方式完全不同，混在一张卡里，用户分不清「我的文件有问题」还是「网没通」。
 //
-// ⚠️ 这里**不动本机库**。推上去只是推一份副本，拉回来也只是显示条数 ——
-//    真正把云端合并进本机（谁赢、离线怎么办）是 Day 20 的活。
-//    这一块现在的价值只有一个：证明链路是通的、两边的校验都真的在工作。
+// ⚠️ 这里**会动本机库**（Day 20 起）：拉回来不只是显示条数，而是真的落到本地、
+//    让队列跟着变。没有这一步，公网页面上「拉到了 8 条变化」但列表还是空的 ——
+//    那只能证明链路通，证明不了应用能用。
+//    仍然**没做**的是真正的双向合并：谁赢、离线时先记哪、两边都改过怎么办。
+//    现在的语义是「远端为准、逐条覆盖」，见 repository.ts 的 applyRemote。
 //
 // 🔴 三条不能踩的：
 //    ① 不套 useTaskQueue 的 act()。那个会把失败写进 queue.error，
@@ -48,7 +50,7 @@ interface Outcome {
 }
 
 export function CloudSyncPanel({ queue }: CloudSyncPanelProps) {
-  const { total } = queue
+  const { total, refresh } = queue
 
   const [config, setConfig] = useState<SyncConfig>(loadConfig)
   const [cursor, setCursor] = useState<number>(loadCursor)
@@ -104,14 +106,25 @@ export function CloudSyncPanel({ queue }: CloudSyncPanelProps) {
     })
   }
 
-  /** ② 按游标拉变化 */
+  /** ② 按游标拉变化 —— Day 20 起会真的写进本机库 */
   function handlePull() {
     void run(async () => {
       const data = await pullSince(cursor, config)
+
+      // 🔴 顺序不能反：先落库、再挪游标。
+      //    万一落库失败而游标已经前进了，那批变化就永远拉不回来了（云端不会再发一次）。
+      const applied = await taskRepo.applyRemote(data.items)
+
       saveCursor(data.cursor)
       setCursor(data.cursor)
+      // 队列重读一次，页面上立刻能看到拉到的东西
+      void refresh()
 
       const parts = [`拉到 ${data.items.length} 条变化`]
+      if (applied.inserted > 0 || applied.updated > 0) {
+        parts.push(`本机新增 ${applied.inserted} 件、覆盖 ${applied.updated} 件`)
+      }
+      if (applied.removed > 0) parts.push(`删掉 ${applied.removed} 件（云端已删）`)
       if (data.notice !== null) parts.push(`提示：${data.notice}`)
       parts.push(`新游标 ${data.cursor}`)
       if (data.hasMore) parts.push('云端说还有更多，再点一次继续')
@@ -165,9 +178,9 @@ export function CloudSyncPanel({ queue }: CloudSyncPanelProps) {
       <h2>云端同步（试运行）</h2>
 
       <p className="hint">
-        任务仍然只存在<strong>这台设备的浏览器里</strong>。这一块只做一件事：
-        把本机任务推一份到云端、再按序号拉回来，先确认<strong>接口是通的</strong>。
-        真正的合并（两台设备都改过怎么办、断网时先记哪）留到后面做。
+        任务是<strong>以这台设备的浏览器为准</strong>的，云端只存一份副本。
+        「推送」把本机任务传上去，「拉取」把云端的改动<strong>落到本机</strong>、列表跟着变。
+        还没做的是真正的双向合并 —— 两台设备改过同一条时谁赢、断网时先记哪。
       </p>
 
       <div className="sync-fields">
