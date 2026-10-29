@@ -169,5 +169,13 @@ check('🔴 幂等分支的 cursor / seq 不是 null（findByIds 必须 select s
 
 ## 七、还没做的
 
+- ⬜ **回收站界面** —— 定稿口径（本人 10-29）：「**云端软删留痕，界面上的回收站还没做**」。
+  ⚠️ 说清楚边界，别让人以为已经能找回：
+  - **成立**：服务端软删，`deleted_at` 有值、行在库里，改数据库能救回来
+  - **不成立**：`app/src/ui/` 下没有回收站组件；`local-indexeddb.ts:143` 明确「本机没有回收站的概念，删除就是真删」；
+    本地 `Task` 还没有 `deletedAt` 字段（`cloud-sync.ts:236`），界面上表示不出「已删除」这个状态
+  - 别和详情页的 `handleRestore` 混：那是「已完成 → 待办」，不是恢复已删除
+  - 🔴 将来做的时候：`useTaskQueue.ts` 的过滤要改成 `status !== 'done' && deletedAt === null`，
+    否则回收站里的已完成任务会漏进今日队列
 - ⬜ 「余力加练」：课程建议的 `is_deleted` 标记 —— 我们的 `deleted_at` + `purged_at` 已经是它的超集，不再重复做
 - ⬜ 批量操作、用户系统 —— 课程明确「今日不做」
