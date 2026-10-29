@@ -168,7 +168,9 @@ async function request<T>(path: string, init: RequestInit, config: SyncConfig): 
     // fetch 只在**网络层**失败时 reject：域名写错、断网、DNS 挂了、
     // 或者被浏览器的 CORS 策略拦下（这时控制台才看得到真正原因）。
     // 注意 4xx/5xx 不会走到这里 —— 它们是「请求成功了，服务器说不行」。
-    throw new SyncError('连不上接口：确认地址正确、这台设备能上网，再打开浏览器控制台看有没有跨域报错')
+    throw new SyncError(
+      '连不上接口 —— 确认地址正确、这台设备能上网，再打开浏览器控制台看有没有跨域报错',
+    )
   }
 
   const raw = await response.text()

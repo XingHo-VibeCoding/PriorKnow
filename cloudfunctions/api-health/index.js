@@ -81,6 +81,7 @@
 //  🔴 依赖只能单向：入口 → 业务 → 数据。数据层不认识上面两层。
 // ════════════════════════════════════════════════════════════
 const { reply, replyRaw, readHeader } = require('./http/reply')
+const { INTERNAL_ERROR } = require('./messages')
 const {
   handleGetTasks,
   handlePostTasks,
@@ -89,6 +90,27 @@ const {
 } = require('./tasks/handlers')
 
 exports.main = async (event, context) => {
+  try {
+    return await route(event, context)
+  } catch (err) {
+    // 🔴 这个 catch 存在的理由有两条，缺一条都不该留它：
+    //
+    //   ① **不泄漏**。没兜住时，异常会直接交给运行时，回给浏览器的是
+    //      运行时自己的 500 页面 —— 里面可能有堆栈、SQL 片段、内网地址。
+    //      错误信息一旦带出内部结构，攻击者就不用猜了。
+    //
+    //   ② **不破坏响应壳**。契约第三节说 `{ok,data,error}` 恒成立，
+    //      405/404 都遵守。要是 500 换成运行时那套 HTML，前端
+    //      `isEnvelope()` 判否 → 界面显示「接口返回的不是预期格式」，
+    //      把「服务端炸了」说成「你地址填错了」—— 恰好指错方向。
+    //
+    // 所以：**日志里留全量，响应里只留一句人话**。
+    console.error('[api-health] 未捕获的异常：', err && err.stack ? err.stack : err)
+    return reply(500, { ok: false, data: null, error: INTERNAL_ERROR })
+  }
+}
+
+async function route(event, context) {
   const http = (context && context.httpContext) || {}
 
   const method = String(http.httpMethod || 'GET').toUpperCase()

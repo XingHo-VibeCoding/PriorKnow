@@ -108,20 +108,22 @@ export function FocusMode({ queue, onExit }: FocusModeProps) {
   // 「加载中 / 错误 / 空」各自有各自的样子，专注模式不能退化成一句「队列清空了」。
   if (task === undefined) {
     const loading = !queue.loaded
-    const failed = queue.error !== ''
+    // 留住这个对象本身，而不是先算一个布尔量 ——
+    // 布尔量过一道就丢了 TypeScript 的类型收窄，下面取 .text 会报「可能是 null」。
+    const failure = queue.error
 
     return (
       <div className="focus-layer" role="dialog" aria-modal="true" aria-label="专注模式">
         <div className="focus-panel" ref={panelRef} tabIndex={-1}>
           <p className="focus-eyebrow">专注模式</p>
           <h2 className="focus-empty">
-            {loading ? '正在读取…' : failed ? '队列没读出来' : '队列清空了'}
+            {loading ? '正在读取…' : failure !== null ? '队列没读出来' : '队列清空了'}
           </h2>
           <p className="focus-sub">
             {loading
               ? '正在从这台设备的浏览器里读任务。'
-              : failed
-                ? queue.error
+              : failure !== null
+                ? failure.text
                 : queue.done.length > 0
                   ? `今天已经完成 ${queue.done.length} 件。不想关屏幕就去休息一下，或者再加一条。`
                   : '还没有待办任务。先加一条，再回来专注。'}

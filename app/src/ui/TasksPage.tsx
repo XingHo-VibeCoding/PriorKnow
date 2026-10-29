@@ -20,6 +20,7 @@ import { Link } from 'react-router-dom'
 import { taskRepo } from '../data'
 import { activeConfig, deleteTaskRemote } from '../data/cloud-sync'
 import { CloudSyncPanel } from './CloudSyncPanel'
+import { ErrorNote } from './ErrorNote'
 import { DataPanel } from './DataPanel'
 import { TaskComposer } from './TaskComposer'
 import type { TaskQueue } from './useTaskQueue'
@@ -89,10 +90,10 @@ export function TasksPage({ queue, notice, onCreated }: TasksPageProps) {
         {notice !== '' && <p className="list-note">{notice}</p>}
 
         {/* ---------- 状态一：错误 ---------- */}
-        {error !== '' ? (
+        {error !== null ? (
           <div className="state state-error">
             <p className="state-title">任务列表没读出来</p>
-            <p className="state-sub">{error}</p>
+            <ErrorNote error={error} className="state-sub" />
             <button type="button" className="state-action" onClick={() => void refresh()}>
               重试
             </button>

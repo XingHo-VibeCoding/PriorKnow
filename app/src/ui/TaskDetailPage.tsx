@@ -16,6 +16,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { taskRepo } from '../data'
 import { activeConfig, deleteTaskRemote, patchTask } from '../data/cloud-sync'
 import type { Task } from '../core/types'
+import { ErrorNote } from './ErrorNote'
 import { formatMinutes } from './format'
 import { FactorBreakdown, describeSegment } from './TodayQueue'
 import type { TaskQueue } from './useTaskQueue'
@@ -46,13 +47,13 @@ export function TaskDetailPage({ queue }: TaskDetailPageProps) {
   }, [currentTitle])
 
   // ---------- 状态一：错误 ----------
-  if (error !== '') {
+  if (error !== null) {
     return (
       <section className="card">
         <h2>任务详情</h2>
         <div className="state state-error">
           <p className="state-title">这件任务没读出来</p>
-          <p className="state-sub">{error}</p>
+          <ErrorNote error={error} className="state-sub" />
           <button type="button" className="state-action" onClick={() => void refresh()}>
             重试
           </button>

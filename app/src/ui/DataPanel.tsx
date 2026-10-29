@@ -18,18 +18,28 @@
 import { useRef, useState, type ChangeEvent } from 'react'
 import { taskRepo } from '../data'
 import type { Task } from '../core/types'
-import { describeError } from './format'
+import { ErrorNote } from './ErrorNote'
+import { explainError, inputError, type ExplainedError } from './errors'
 import type { TaskQueue } from './useTaskQueue'
 
 interface DataPanelProps {
   queue: TaskQueue
 }
 
-/** 一次操作的结果提示。tone 决定它是绿的还是红的。 */
-interface Status {
-  text: string
-  tone: 'ok' | 'bad'
-}
+/**
+ * 一次操作的结果提示。tone 决定它是绿的还是红的。
+ *
+ * Day 23 起失败的那一支不再是一条裸字符串，而是 explainError 的产物 ——
+ * 于是「导出失败」「文件格式不对」「导入没完成」三种坏消息各自带上
+ * 自己的类别标签，而不是三句长得一样的「某某失败：xxx」。
+ *
+ * 用判别联合（而不是 `{text, tone, error?}` 那种可选字段）是为了让
+ * 「成功必有文案、失败必有类别」由**类型系统**保证：
+ * 少填一样就编译不过，不必等到运行时才发现提示是空白的。
+ */
+type Status =
+  | { tone: 'ok'; text: string }
+  | { tone: 'bad'; error: ExplainedError }
 
 export function DataPanel({ queue }: DataPanelProps) {
   const { total, busy, act, loadSamples } = queue
@@ -50,9 +60,9 @@ export function DataPanel({ queue }: DataPanelProps) {
       link.click()
       URL.revokeObjectURL(url)
 
-      setStatus({ text: `已导出 ${list.length} 件任务。`, tone: 'ok' })
+      setStatus({ tone: 'ok', text: `已导出 ${list.length} 件任务。` })
     } catch (err) {
-      setStatus({ text: '导出失败：' + describeError(err), tone: 'bad' })
+      setStatus({ tone: 'bad', error: explainError(err, '导出') })
     }
   }
 
@@ -69,12 +79,18 @@ export function DataPanel({ queue }: DataPanelProps) {
       parsed = JSON.parse(await file.text())
     } catch {
       // 连 JSON 都不是 —— 这时还没碰过数据库
-      setStatus({ text: '文件格式不正确，已保留你原来的数据（内容不是合法的 JSON）。', tone: 'bad' })
+      setStatus({
+        tone: 'bad',
+        error: inputError('文件格式不正确，已保留你原来的数据（内容不是合法的 JSON）。'),
+      })
       return
     }
 
     if (!Array.isArray(parsed)) {
-      setStatus({ text: '文件格式不正确，已保留你原来的数据（顶层应该是一个任务数组）。', tone: 'bad' })
+      setStatus({
+        tone: 'bad',
+        error: inputError('文件格式不正确，已保留你原来的数据（顶层应该是一个任务数组）。'),
+      })
       return
     }
 
@@ -82,7 +98,7 @@ export function DataPanel({ queue }: DataPanelProps) {
       `导入会清掉现有的 ${total} 件任务，换成文件里的 ${parsed.length} 件。继续？`,
     )
     if (!ok) {
-      setStatus({ text: '已取消导入，原数据未改动。', tone: 'ok' })
+      setStatus({ tone: 'ok', text: '已取消导入，原数据未改动。' })
       return
     }
 
@@ -93,8 +109,15 @@ export function DataPanel({ queue }: DataPanelProps) {
 
     setStatus(
       succeeded
-        ? { text: `已导入 ${parsed.length} 件任务，原有数据已被替换。`, tone: 'ok' }
-        : { text: '导入未完成：文件内容有问题，你原来的数据没有被改动（具体原因见上方队列的错误提示）。', tone: 'bad' },
+        ? { tone: 'ok', text: `已导入 ${parsed.length} 件任务，原有数据已被替换。` }
+        : {
+            tone: 'bad',
+            // 数据层会逐条验完才动库，所以走到这里原数据一定是安全的。
+            // 具体是哪一条、哪个字段，在队列那一块会以「输入问题」的形式列出来。
+            error: inputError(
+              '导入未完成：文件内容有问题，你原来的数据没有被改动（具体是哪一条，见队列那一块的提示）。',
+            ),
+          },
     )
   }
 
@@ -103,8 +126,8 @@ export function DataPanel({ queue }: DataPanelProps) {
     const succeeded = await loadSamples()
     setStatus(
       succeeded
-        ? { text: '已载入 7 件示例任务（期末周冲刺）。', tone: 'ok' }
-        : { text: '没有载入示例数据，原数据未改动。', tone: 'ok' },
+        ? { tone: 'ok', text: '已载入 7 件示例任务（期末周冲刺）。' }
+        : { tone: 'ok', text: '没有载入示例数据，原数据未改动。' },
     )
   }
 
@@ -138,7 +161,14 @@ export function DataPanel({ queue }: DataPanelProps) {
         aria-label="选择要导入的 JSON 文件"
       />
 
-      {status !== null && <p className={`status status-${status.tone}`}>{status.text}</p>}
+      {/* 成功是一条绿条，失败是「标签 + 一句话」—— 两者都用 .status 的壳，
+          所以上下位置和留白完全一样，变的是内容结构。 */}
+      {status !== null &&
+        (status.tone === 'ok' ? (
+          <p className="status status-ok">{status.text}</p>
+        ) : (
+          <ErrorNote error={status.error} className="status status-bad" />
+        ))}
     </section>
   )
 }

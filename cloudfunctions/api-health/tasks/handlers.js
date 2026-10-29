@@ -5,6 +5,7 @@
  * 🔴 这里**不该再出现** `db.from(...)` —— 所有查询都在 data/tasksRepository.js。
  */
 const { reply, readHeader } = require('../http/reply')
+const { INTERNAL_ERROR } = require('../messages')
 const { getDb } = require('../data/db')
 const tasksRepo = require('../data/tasksRepository')
 const { PAGE_SIZE } = tasksRepo
@@ -107,7 +108,7 @@ async function handleGetTasks(searchParams, rawHeaders) {
     // 🔴 不把堆栈或英文异常抛给前端（契约第二节错误表最后一行）。
     //    但**要打到函数日志**，否则线上出问题只能靠猜。
     console.error('[GET /api/tasks] 查询失败：', err && err.message, err && (err.dbCode || err.code))
-    return reply(500, { ok: false, data: null, error: '服务器内部错误，请稍后再试' })
+    return reply(500, { ok: false, data: null, error: INTERNAL_ERROR })
   }
 }
 
@@ -315,7 +316,7 @@ async function applyChanges(userId, candidates, opts = {}) {
     //      tcb logs search -e <envId> --limit 20
     //      tcb logs search -e <envId> -q 'function_name:"api-health" AND log:"写入失败"'
     console.error(`[${entry}] 写入失败：`, err && err.message, err && (err.dbCode || err.code))
-    return { status: 500, payload: { ok: false, data: null, error: '服务器内部错误，请稍后再试' } }
+    return { status: 500, payload: { ok: false, data: null, error: INTERNAL_ERROR } }
   }
 }
 
@@ -524,7 +525,7 @@ async function handleDeleteTask(id, rawHeaders) {
     return reply(result.status, result.payload)
   } catch (err) {
     console.error('[DELETE /api/tasks/:id] 删除失败：', err && err.message, err && (err.dbCode || err.code))
-    return reply(500, { ok: false, data: null, error: '服务器内部错误，请稍后再试' })
+    return reply(500, { ok: false, data: null, error: INTERNAL_ERROR })
   }
 }
 

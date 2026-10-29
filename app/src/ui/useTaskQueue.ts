@@ -15,7 +15,7 @@ import { taskRepo } from '../data'
 import { buildSampleTasks } from '../data/sampleTasks'
 import { rankTasks, type QueueEntry } from '../core/priorityQueue'
 import type { Task } from '../core/types'
-import { describeError } from './format'
+import { explainError, type ExplainedError } from './errors'
 
 /**
  * 数据层的四种演示模式。
@@ -75,8 +75,14 @@ export interface TaskQueue {
   busy: boolean
   /** 正在写入的那一件。用来把「处理中…」只显示在被点的那张卡上，而不是所有卡片一起变 */
   busyTaskId: string | null
-  /** 读 / 写失败的提示。**非空即「错误状态」** */
-  error: string
+  /**
+   * 读 / 写失败的提示。**非 null 即「错误状态」**。
+   *
+   * Day 23 起它不再是一个裸字符串：同一句「失败」要能说清是哪一类
+   * （输入 / 网络 / 服务端 / 本机），所以换成 explainError 的产物。
+   * 界面用 ErrorNote 原样渲染，不需要自己再拼「失败：」三个字。
+   */
+  error: ExplainedError | null
   /** 本次渲染用的「现在」。分数与「还剩几天」都由它算，保证同一屏里自洽 */
   now: Date
   /** 重新读库 + 重置时刻 */
@@ -102,7 +108,7 @@ export function useTaskQueue(dataMode: DataMode): TaskQueue {
   const [loaded, setLoaded] = useState(false)
   const [busy, setBusy] = useState(false)
   const [busyTaskId, setBusyTaskId] = useState<string | null>(null)
-  const [error, setError] = useState('')
+  const [error, setError] = useState<ExplainedError | null>(null)
   const [now, setNow] = useState(() => new Date())
   const [feedback, setFeedback] = useState<ActionFeedback | null>(null)
 
@@ -111,7 +117,12 @@ export function useTaskQueue(dataMode: DataMode): TaskQueue {
     // 这不是假装出错，而是把**真实会发生**的读取失败提前摆出来看：
     // 万一以后真出问题，界面长什么样是早就见过的，不至于当场手忙脚乱。
     if (dataMode === 'fail') {
-      setError('读取失败：数据层被「模拟失败」开关拦下了。把开关调回「正常」即可恢复。')
+      setError(
+        explainError(
+          new Error('数据层被「模拟失败」开关拦下了。把开关调回「正常」即可恢复。'),
+          '读取失败',
+        ),
+      )
       setLoaded(true)
       return
     }
@@ -126,9 +137,9 @@ export function useTaskQueue(dataMode: DataMode): TaskQueue {
       const list = await taskRepo.listTasks()
       setTasks(list)
       setNow(new Date())
-      setError('')
+      setError(null)
     } catch (err) {
-      setError('读取失败：' + describeError(err))
+      setError(explainError(err, '读取失败'))
     } finally {
       setLoaded(true)
     }
@@ -175,7 +186,7 @@ export function useTaskQueue(dataMode: DataMode): TaskQueue {
         await refresh()
         return true
       } catch (err) {
-        setError(failureNote + '：' + describeError(err))
+        setError(explainError(err, failureNote))
         return false
       } finally {
         setBusy(false)
@@ -227,7 +238,7 @@ export function useTaskQueue(dataMode: DataMode): TaskQueue {
           kind: 'failed',
           taskId: id,
           title,
-          detail: describeError(err),
+          detail: explainError(err).text,
           retry: 'complete',
         })
         return false
@@ -264,7 +275,7 @@ export function useTaskQueue(dataMode: DataMode): TaskQueue {
           kind: 'failed',
           taskId,
           title,
-          detail: describeError(err),
+          detail: explainError(err).text,
           retry: 'undo',
         })
         return false

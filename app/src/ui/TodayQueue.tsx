@@ -26,6 +26,7 @@ import { useLayoutEffect, useRef, useState } from 'react'
 import { taskRepo } from '../data'
 import type { QueueEntry } from '../core/priorityQueue'
 import type { Task } from '../core/types'
+import { ErrorNote } from './ErrorNote'
 import { formatMinutes } from './format'
 import type { TaskQueue } from './useTaskQueue'
 
@@ -168,13 +169,13 @@ export function TodayQueue({ queue, notice, onStartFocus }: TodayQueueProps) {
   }
 
   // ---------- 状态一：错误 ----------
-  if (error !== '') {
+  if (error !== null) {
     return (
       <section className="card">
         <h2>今日队列</h2>
         <div className="state state-error">
           <p className="state-title">队列没读出来</p>
-          <p className="state-sub">{error}</p>
+          <ErrorNote error={error} className="state-sub" />
           <button type="button" className="state-action" onClick={() => void refresh()}>
             重试
           </button>

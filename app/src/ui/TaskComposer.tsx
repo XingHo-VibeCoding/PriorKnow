@@ -12,6 +12,8 @@
 import { useState, type FormEvent } from 'react'
 import { taskRepo } from '../data'
 import { DEFAULT_IMPORTANCE, type Importance } from '../core/types'
+import { ErrorNote } from './ErrorNote'
+import { explainError, inputError, type ExplainedError } from './errors'
 
 const STARS: Importance[] = [1, 2, 3, 4, 5]
 
@@ -25,7 +27,10 @@ export function TaskComposer({ onCreated }: TaskComposerProps) {
   const [dueLocal, setDueLocal] = useState('')
   const [estimate, setEstimate] = useState('')
   const [importance, setImportance] = useState<Importance>(DEFAULT_IMPORTANCE)
-  const [error, setError] = useState('')
+  // Day 23：错误不再是裸字符串，而是「哪一类 + 一句人话」。
+  // 表单的前置校验（标题空、耗时是负数）走 inputError，
+  // 数据层抛出来的走 explainError —— 两条路出口是同一个组件。
+  const [failure, setFailure] = useState<ExplainedError | null>(null)
   const [busy, setBusy] = useState(false)
 
   async function handleSubmit(event: FormEvent) {
@@ -33,7 +38,7 @@ export function TaskComposer({ onCreated }: TaskComposerProps) {
 
     const trimmed = title.trim()
     if (trimmed === '') {
-      setError('标题不能为空 —— 这是唯一的必填项')
+      setFailure(inputError('标题不能为空 —— 这是唯一的必填项'))
       return
     }
 
@@ -45,12 +50,12 @@ export function TaskComposer({ onCreated }: TaskComposerProps) {
     // 算法里 0 分钟会被当成「瞬间完成」，省时度直接顶格，等于凭空加分。
     const estimateMinutes = estimate.trim() === '' ? null : Number(estimate)
     if (estimateMinutes !== null && (!Number.isFinite(estimateMinutes) || estimateMinutes <= 0)) {
-      setError('预计耗时要么留空，要么填一个大于 0 的分钟数')
+      setFailure(inputError('预计耗时要么留空，要么填一个大于 0 的分钟数'))
       return
     }
 
     setBusy(true)
-    setError('')
+    setFailure(null)
     try {
       await taskRepo.createTask({ title: trimmed, dueAt, estimateMinutes, importance })
 
@@ -62,7 +67,7 @@ export function TaskComposer({ onCreated }: TaskComposerProps) {
 
       await onCreated(`已加入「${trimmed}」，队列已重排`)
     } catch (err) {
-      setError('保存失败：' + (err instanceof Error ? err.message : String(err)))
+      setFailure(explainError(err, '保存失败'))
     } finally {
       setBusy(false)
     }
@@ -137,7 +142,7 @@ export function TaskComposer({ onCreated }: TaskComposerProps) {
         <span className="composer-note">优先级由系统算，不用你标</span>
       </div>
 
-      {error !== '' && <p className="composer-error">{error}</p>}
+      {failure !== null && <ErrorNote error={failure} className="composer-error" />}
     </form>
   )
 }

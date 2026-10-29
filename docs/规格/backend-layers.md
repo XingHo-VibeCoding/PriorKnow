@@ -140,7 +140,7 @@ for (const batch of chunk(ids, IN_BATCH)) { ... }
 | `POST /api/tasks`（同 id 再推）| 201，库里不多行，`seq` 再变大 |
 | `POST /api/tasks`（缺 title）| 400，`rejected[0].field = 'title'` |
 | `POST /api/tasks`（不同 id 同标题）| 409 |
-| `PATCH /api/tasks` | 405 + `Allow` 头 |
+| `PATCH /api/tasks` | ~~405 + `Allow` 头~~ → **Day 22 起是 404**，并提示改写成 `/tasks/{id}` |
 | `OPTIONS /api/tasks` | 204 + 放行 `X-User-Id` |
 
 ---
@@ -159,4 +159,44 @@ for (const batch of chunk(ids, IN_BATCH)) { ... }
 
 ---
 
-_最后更新：2026-10-27（Day 19 重构当天）_
+## 七、Day 23 追加：两处新的公共位置
+
+### 1. `messages.js` —— 平级的公共叶子模块（新增）
+
+```
+cloudfunctions/api-health/
+├── index.js        入口层
+├── messages.js     ← 新增。固定文案常量，谁也不依赖
+├── http/reply.js   入口层
+├── tasks/…         业务层
+└── data/…          数据层
+```
+
+为什么它是**根目录下的独立文件**，而不是塞进 `http/` 或 `tasks/`：
+
+- 入口层（`index.js`）和业务层（`tasks/handlers.js`）**都要**用它；
+- 放进 `tasks/` → 入口层依赖业务层，违反「入口 → 业务 → 数据」；
+- 放进 `http/` → 业务层依赖入口层，同样违反；
+- 放根目录 → 两边都只是**往下拿**，它自己谁都不认识，单向依赖保住了。
+
+一句话判据：**一个模块被两个不同层同时需要时，它应该落在这两层的公共下界，而不是其中一层的内部。**
+
+现在里面只有一条常量 `INTERNAL_ERROR`（5xx 的唯一说法），原先是三处硬编码。
+拆出来不是为了省几个字，是为了**防止三处各说各话** —— 改了一处忘另一处，
+用户就会看到两句话描述同一件事。
+
+### 2. 入口层的最后一道网（`index.js` 的 `exports.main`）
+
+`exports.main` 现在只做一件事：`try { return await route(...) } catch { … }`，
+异常交给原来的 `route()`。
+
+它不是重复兜底 —— 业务层的 `try/catch` 只覆盖「进了 handler 之后」的代码，
+而**路由匹配、读请求头、拼响应、OPTIONS 分支**这些地方原来没有任何兜底。
+一旦在那里抛出，异常会直接交给运行时，回给浏览器的就不是我们的响应壳了。
+
+代价是那个兜底分支平时跑不到 —— 所以专门有 `verify-day23-500-shell.cjs`
+用一个会抛错的 `httpContext` getter 把它逼出来（39 项）。
+
+---
+
+_最后更新：2026-10-29（Day 23 追加 messages.js 与入口兜底）_

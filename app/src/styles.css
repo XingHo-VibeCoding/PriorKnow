@@ -1259,6 +1259,44 @@ a.state-action {
   color: var(--warn);
 }
 
+/* ---- 错误提示的小标签（Day 23）----
+ *
+ * 三种错误（输入 / 网络 / 服务端）用的是**同一个样子**，只有字变了。
+ * 不是偷懒 —— 是刻意：如果给三类各配一种颜色，用户会去记颜色，
+ * 而真正要读的是后面那句话。统一外形、统一位置，眼睛扫过去就落在正文上。
+ *
+ * 唯一的例外是 unknown（`error-tag-unknown`）：那类是要用户反馈的，
+ * 用告警色把它单独拎出来，让人一眼知道「这个不是我操作错」。
+ *
+ * 排版用 inline 而不是 block：标签要贴在第一行文字的左前方，
+ * 跟在它后面直接接着读。块级会把正文挤到下一行，多占一行高度。
+ */
+.error-tag {
+  display: inline-block;
+  margin-right: 8px;
+  padding: 1px 7px;
+  border-radius: 6px;
+  background: #eceae4;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 600;
+  /* 中文字距会被拉宽一点，收回来，四个字才不像两截 */
+  letter-spacing: -0.2px;
+  vertical-align: 1px;
+  white-space: nowrap;
+}
+
+/* 需要用户反馈的那一类。--warn 在 --warn-soft 上是 5.34:1，正文级达标 */
+.error-tag-unknown {
+  background: var(--warn-soft);
+  color: var(--warn);
+}
+
+/* .status 自己有 overflow-wrap:anywhere，标签里的「问题」不该被拆开 */
+.error-text {
+  overflow-wrap: anywhere;
+}
+
 /* ---- 云端同步（试运行） ---- */
 
 /* 接口地址比用户编号长得多，所以竖排、各自撑满一行。

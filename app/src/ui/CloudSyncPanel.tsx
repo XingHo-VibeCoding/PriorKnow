@@ -36,7 +36,8 @@ import {
   type SyncConfig,
 } from '../data/cloud-sync'
 import type { TaskQueue } from './useTaskQueue'
-import { describeError } from './format'
+import { ErrorNote } from './ErrorNote'
+import { explainError, type ExplainedError } from './errors'
 
 interface CloudSyncPanelProps {
   queue: TaskQueue
@@ -47,6 +48,14 @@ interface Outcome {
   tone: 'ok' | 'bad'
   /** 逐条拒绝原因。只有「被服务端拒了」才有 */
   rejected: RejectedItem[]
+  /**
+   * 失败时的分类标签（Day 23）。
+   *
+   * 成功时为 undefined —— 成功没什么可分类的，硬给它贴个标签只是噪音。
+   * 有它的时候界面用 ErrorNote 渲染，于是「网络问题」「服务端问题」
+   * 这两个标签会和页面其他地方长得一模一样。
+   */
+  failure?: ExplainedError
 }
 
 export function CloudSyncPanel({ queue }: CloudSyncPanelProps) {
@@ -72,12 +81,21 @@ export function CloudSyncPanel({ queue }: CloudSyncPanelProps) {
       setOutcome(await action())
     } catch (err) {
       const rejected = err instanceof SyncError ? err.rejected : []
-      const base = err instanceof SyncError ? err.message : `同步失败：${describeError(err)}`
+      // Day 23：不再自己拼「同步失败：」前缀 —— 分类和文案交给 explainError，
+      // 它会把 SyncError 的 status 0 / 4xx / 5xx 分成网络问题、服务端问题两种，
+      // 其余异常落到本机数据或「未预料的问题」。前缀换成「同步」两个字即可。
+      // 不补「同步」前缀：标签已经说了是哪一类，这张卡本身就在说云端同步。
+      // 补上会变成「同步：服务端拒绝了这次请求（HTTP 400）：…」—— 一句话两个冒号。
+      const explained = explainError(err)
+      // 逐条原因在下面单独列出来，这里只报「共几条」，别把 7 条原因挤成一句话
+      const text =
+        rejected.length > 0 ? `${explained.text}（${rejected.length} 件被拒，原因见下）` : explained.text
+
       setOutcome({
-        // 逐条原因在下面单独列出来，这里只报「共几条」，别把 7 条原因挤成一句话
-        text: rejected.length > 0 ? `${base}（${rejected.length} 件被拒，原因见下）` : base,
+        text,
         tone: 'bad',
         rejected,
+        failure: { ...explained, text },
       })
     } finally {
       setBusy(false)
@@ -231,7 +249,11 @@ export function CloudSyncPanel({ queue }: CloudSyncPanelProps) {
 
       {outcome !== null && (
         <>
-          <p className={`status status-${outcome.tone}`}>{outcome.text}</p>
+          {outcome.failure !== undefined ? (
+            <ErrorNote error={outcome.failure} className={`status status-${outcome.tone}`} />
+          ) : (
+            <p className={`status status-${outcome.tone}`}>{outcome.text}</p>
+          )}
           {outcome.rejected.length > 0 && (
             <ul className="sync-rejected">
               {outcome.rejected.map((item) => (

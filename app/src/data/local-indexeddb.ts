@@ -10,6 +10,7 @@
 
 import Dexie, { type EntityTable } from 'dexie'
 import { DEFAULT_IMPORTANCE, type Importance, type Task, type TaskInput, type TaskPatch } from '../core/types'
+import { ValidationError } from './errors'
 import type { ApplyRemoteResult, RemoteTaskIn, TaskRepository } from './repository'
 
 /**
@@ -50,7 +51,7 @@ export class IndexedDbTaskRepository implements TaskRepository {
   async createTask(input: TaskInput): Promise<Task> {
     const title = input.title.trim()
     if (!title) {
-      throw new Error('任务内容不能为空')
+      throw new ValidationError('任务内容不能为空')
     }
 
     // id / status / createdAt 三个字段由系统生成，不由调用方决定
@@ -84,7 +85,7 @@ export class IndexedDbTaskRepository implements TaskRepository {
 
     merged.title = merged.title.trim()
     if (!merged.title) {
-      throw new Error('任务内容不能为空')
+      throw new ValidationError('任务内容不能为空')
     }
 
     await this.db.tasks.put(merged)
@@ -213,13 +214,13 @@ function normalizeImported(raw: unknown, index: number): Task {
   const position = `第 ${index + 1} 条`
 
   if (typeof raw !== 'object' || raw === null) {
-    throw new Error(`${position}不是有效的任务对象`)
+    throw new ValidationError(`${position}不是有效的任务对象`)
   }
 
   const source = raw as Partial<Task>
 
   if (typeof source.title !== 'string' || !source.title.trim()) {
-    throw new Error(`${position}缺少有效的任务内容（title）`)
+    throw new ValidationError(`${position}缺少有效的任务内容（title）`)
   }
 
   return {
