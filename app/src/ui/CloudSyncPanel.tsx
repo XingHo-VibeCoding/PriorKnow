@@ -27,11 +27,13 @@ import {
   SyncError,
   loadConfig,
   loadCursor,
+  loadOwner,
   postRows,
   pullSince,
   pushTasks,
   saveConfig,
   saveCursor,
+  saveOwner,
   type RejectedItem,
   type SyncConfig,
 } from '../data/cloud-sync'
@@ -62,7 +64,9 @@ export function CloudSyncPanel({ queue }: CloudSyncPanelProps) {
   const { total, refresh } = queue
 
   const [config, setConfig] = useState<SyncConfig>(loadConfig)
-  const [cursor, setCursor] = useState<number>(loadCursor)
+  /** 本机这批任务属于谁。本机只有一本账，换号之前必须先把它请出去 */
+  const [owner, setOwner] = useState<string | null>(loadOwner)
+  const [cursor, setCursor] = useState<number>(() => loadCursor(loadConfig().userId))
   const [outcome, setOutcome] = useState<Outcome | null>(null)
   const [busy, setBusy] = useState(false)
 
@@ -71,7 +75,23 @@ export function CloudSyncPanel({ queue }: CloudSyncPanelProps) {
     const next = { ...config, ...patch }
     setConfig(next)
     saveConfig(next)
+    // 换了用户编号，游标要跟着换 —— 游标是按用户存的。
+    // 不跟着换，界面上会显示上一个号的进度，那是在骗人。
+    if (patch.userId !== undefined) setCursor(loadCursor(next.userId))
   }
+
+  /** 当前填的用户编号（去掉首尾空格） */
+  const currentUser = config.userId.trim()
+
+  /**
+   * 本机数据属于别人 —— 唯一需要「先处理再继续」的状态。
+   *
+   * 只要它成立，推送和拉取都不许点：
+   *   · 推送 → 把上一个号的任务整批写进当前号名下（污染对方的账号）
+   *   · 拉取 → 两个号的任务混成一张列表，之后再也分不开（本机没有 user_id 列）
+   * 所以按钮直接禁用，并在上面把话说清楚、给一条出路，而不是点下去才弹错误。
+   */
+  const mismatch = owner !== null && currentUser !== '' && owner !== currentUser
 
   /** 三个按钮共用一段「忙 → 试 → 收结果」，只有中间那步不一样 */
   async function run(action: () => Promise<Outcome>) {
@@ -109,6 +129,13 @@ export function CloudSyncPanel({ queue }: CloudSyncPanelProps) {
       const data = await pushTasks(tasks, config)
       const corrected = data.accepted.filter((item) => item.corrected).length
 
+      // 第一次跟这个号打交道：这批任务从此归它。
+      // 放在**成功之后**记，失败的东西不该被认领。
+      if (owner === null) {
+        saveOwner(currentUser)
+        setOwner(currentUser)
+      }
+
       // ⚠️ 部分成功时不能只报好消息：201 只代表「至少有一条被接收」，
       //    被拒的那几条如果不说，用户会以为全都上去了。
       const parts = [`推上去 ${data.accepted.length} 件`]
@@ -133,8 +160,13 @@ export function CloudSyncPanel({ queue }: CloudSyncPanelProps) {
       //    万一落库失败而游标已经前进了，那批变化就永远拉不回来了（云端不会再发一次）。
       const applied = await taskRepo.applyRemote(data.items)
 
-      saveCursor(data.cursor)
+      // 游标按用户存 —— 同一台机器上换过号，两个号各自的进度不会互相踩
+      saveCursor(currentUser, data.cursor)
       setCursor(data.cursor)
+      if (owner === null) {
+        saveOwner(currentUser)
+        setOwner(currentUser)
+      }
       // 队列重读一次，页面上立刻能看到拉到的东西
       void refresh()
 
@@ -147,6 +179,44 @@ export function CloudSyncPanel({ queue }: CloudSyncPanelProps) {
       parts.push(`新游标 ${data.cursor}`)
       if (data.hasMore) parts.push('云端说还有更多，再点一次继续')
       return { text: parts.join(' · '), tone: 'ok', rejected: [] }
+    })
+  }
+
+  /**
+   * 换用户编号时唯一正确的出路：把这本账清空，再认新主人。
+   *
+   * 不做「自动清空」—— 清数据必须用户点头，而且要让他先知道**云端不受影响**，
+   * 否则他会以为按一下就全没了，于是宁可不点、继续混着用。
+   */
+  function handleSwitchOwner() {
+    const target = currentUser
+    if (target === '' || owner === null) return
+
+    const confirmed = window.confirm(
+      `这台设备上的 ${total} 件任务属于「${owner}」。\n\n` +
+        `清空之后它们会从这台设备消失，这本账改为「${target}」的。\n` +
+        `云端两边都不动 ——「${owner}」的任务还在云端，换回去再拉就能回来。\n\n` +
+        '确定清空本机数据吗？',
+    )
+    if (!confirmed) {
+      setOutcome({ text: '已取消，本机数据未改动。', tone: 'ok', rejected: [] })
+      return
+    }
+
+    void run(async () => {
+      const removed = await taskRepo.clearAll()
+      saveOwner(target)
+      setOwner(target)
+      // 🔴 游标必须跟着归零：不归零的话，下次拉取从「上一个号」的进度开始，
+      //    这个号早期的记录就永远拉不回来了，而且界面上看起来一切正常。
+      saveCursor(target, 0)
+      setCursor(0)
+      void refresh()
+      return {
+        text: `已清空本机 ${removed} 件任务，这本账现在归「${target}」。可以点「按游标拉取」了 —— 从 0 开始，是全量。`,
+        tone: 'ok',
+        rejected: [],
+      }
     })
   }
 
@@ -227,18 +297,55 @@ export function CloudSyncPanel({ queue }: CloudSyncPanelProps) {
       </div>
 
       <p className="sync-meta">
-        本机 <strong>{total}</strong> 件任务 · 当前游标 <strong>{cursor}</strong>
-        {cursor === 0 && '（0 表示还没从云端拉过）'}
+        本机 <strong>{total}</strong> 件任务 ·{' '}
+        {owner === null ? (
+          '还没归属任何用户'
+        ) : (
+          <>
+            属于「<strong>{owner}</strong>」
+          </>
+        )}{' '}
+        · 游标 <strong>{cursor}</strong>
+        {cursor === 0 && '（0 表示从这个号的起点开始拉）'}
       </p>
 
+      {/* 换了用户编号 —— 这件事必须先说清再让路走通。
+          不做成「点下去才报错」，因为这里的错不是失败，是**会把数据写错地方**。
+          本机只有一本账，所以只有一条出路：清空本机、认新主人。 */}
+      {mismatch && (
+        <div className="sync-warn">
+          <p className="sync-warn-title">
+            本机数据属于「{owner}」，不是「{currentUser}」
+          </p>
+          <p className="sync-warn-body">
+            这台设备只有一本账。现在点推送，会把「{owner}」的 {total} 件任务写到「{currentUser}」名下；
+            现在点拉取，两个号的任务会混成一张列表 —— <strong>之后再也分不开</strong>。
+            所以要换号，得先把这本账清出去。
+          </p>
+          <div className="btn-row">
+            <button
+              type="button"
+              className="danger"
+              onClick={handleSwitchOwner}
+              disabled={busy}
+            >
+              清空本机 {total} 件，切换到「{currentUser}」
+            </button>
+          </div>
+          <p className="sync-warn-foot">
+            云端两边都不动 ——「{owner}」的任务还在云端，换回去再拉就能回来。
+          </p>
+        </div>
+      )}
+
       <div className="btn-row">
-        <button type="button" onClick={handlePush} disabled={busy || !ready}>
+        <button type="button" onClick={handlePush} disabled={busy || !ready || mismatch}>
           {busy ? '请求中…' : '推送本机任务'}
         </button>
-        <button type="button" onClick={handlePull} disabled={busy || !ready}>
+        <button type="button" onClick={handlePull} disabled={busy || !ready || mismatch}>
           按游标拉取
         </button>
-        <button type="button" onClick={handleProbe} disabled={busy || !ready}>
+        <button type="button" onClick={handleProbe} disabled={busy || !ready || mismatch}>
           服务端校验自检
         </button>
       </div>

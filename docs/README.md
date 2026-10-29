@@ -39,6 +39,7 @@ Day 23/24 没做登录，所以文档里「登录之后才生效」的那几条*
 | `day23-error-and-security.md` | 错误分五类（`input/network/server/local/unknown`）+ 安全边界盘点（接口无认证） |
 | `day24-real-bug.md` | 🔴 **修一个真 Bug 的完整四步**：复现 → 定位 → 修复 → 验证。`error` 与 `writeError` 必须分开 |
 | `day24b-time-wheel-and-budget.md` | 追加需求（**不是课程 Day 25**）：滚轮时钟替代时间下拉 + 今日预算按日期上云 |
+| `day24c-owner-switch.md` | 🔴 追加需求：换用户编号的三个 bug（数据混库 / 推送污染对方账号 / 游标不按用户分）+ 示例 id 撞全局主键 |
 
 ⚠️ **Day 17 起先读 `day15-cloudfunction-deploy.md` 与 `day15-frontend-deploy.md`** ——
 CloudBase 排障的坑全在里面，不读会重复踩。

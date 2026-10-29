@@ -92,7 +92,28 @@ export class SyncError extends Error {
 // ---------- 配置的存取 ----------
 
 const CONFIG_KEY = 'priorknow-sync-config'
-const CURSOR_KEY = 'priorknow-sync-cursor'
+/**
+ * 游标**按用户分开存**。
+ *
+ * 🔴 原来是一个全局键（`priorknow-sync-cursor`）。换用户编号之后，
+ *    游标还是上一个号的最大序号，于是 `?since=<A的seq>` 去问 B ——
+ *    B 那边序号小的记录永远拉不到，而且**不报错**、界面上还会显示「已同步」。
+ *    这比「数据混在一起」更隐蔽：混在一起至少看得见。
+ *
+ * ⚠️ 旧的那个全局键**不做迁移**：换号后一律从 0 开始，代价是一次全量重拉。
+ *    全量重拉是幂等的（按 id 覆盖），比「猜一个游标」安全得多。
+ */
+const CURSOR_PREFIX = 'priorknow-sync-cursor:'
+/**
+ * 本机这批任务**属于谁**。
+ *
+ * 本机只有一本账（`tasks` 表没有 user_id 列），云端却是按用户分区的。
+ * 于是「这台设备的数据是谁的」必须单独记一笔，否则换号之后：
+ *   · 推送 → 把 A 的任务整批写进 B 名下（**数据污染，最严重**）
+ *   · 拉取 → A 和 B 的任务混成一张列表，之后再也分不开
+ * 记了 owner 才有判据在按钮上拦一道。
+ */
+const OWNER_KEY = 'priorknow-owner'
 
 /**
  * 配置默认值。
@@ -122,14 +143,29 @@ export function saveConfig(config: SyncConfig): void {
   localStorage.setItem(CONFIG_KEY, JSON.stringify(config))
 }
 
-/** 本机记下的游标：下次 GET 的 since。0 表示「从没同步过」 */
-export function loadCursor(): number {
-  const raw = Number(localStorage.getItem(CURSOR_KEY))
+/** 这个用户上次拉到的位置。0 表示「还没从云端拉过」 */
+export function loadCursor(userId: string): number {
+  const who = userId.trim()
+  if (!who) return 0
+  const raw = Number(localStorage.getItem(CURSOR_PREFIX + who))
   return Number.isFinite(raw) && raw > 0 ? Math.floor(raw) : 0
 }
 
-export function saveCursor(cursor: number): void {
-  localStorage.setItem(CURSOR_KEY, String(Math.max(0, Math.floor(cursor))))
+export function saveCursor(userId: string, cursor: number): void {
+  const who = userId.trim()
+  if (!who) return
+  localStorage.setItem(CURSOR_PREFIX + who, String(Math.max(0, Math.floor(cursor))))
+}
+
+/** 本机数据归属哪个用户编号；null = 还没跟云端打过交道 */
+export function loadOwner(): string | null {
+  const raw = localStorage.getItem(OWNER_KEY)
+  return raw !== null && raw.trim() !== '' ? raw.trim() : null
+}
+
+export function saveOwner(userId: string): void {
+  const who = userId.trim()
+  if (who) localStorage.setItem(OWNER_KEY, who)
 }
 
 // ---------- 请求本体 ----------

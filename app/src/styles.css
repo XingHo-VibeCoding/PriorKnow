@@ -2296,3 +2296,52 @@ a.state-action {
     width: 100%;
   }
 }
+
+/* ---------- 换用户编号的警示（追加需求：本机一本账 vs 云端分区） ---------- */
+
+/* 刻意**不用**红色。
+   红色在这套界面里只标「现在该点的那一个」（当前导航、主按钮、队首）；
+   而这个块里该点的是那个 danger 按钮 —— 整块染红，按钮就不再是焦点了。
+   用回「空状态提示面板」那套虚线中性色，靠文字说清严重性。 */
+.sync-warn {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border: 1px dashed #d9d3c6;
+  border-radius: 10px;
+  background: #fbfaf7;
+}
+
+.sync-warn-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.sync-warn-body {
+  margin: 6px 0 0;
+  font-size: 14px;
+  color: var(--ink-soft);
+  overflow-wrap: anywhere;
+}
+
+.sync-warn-foot {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: var(--ink-faint);
+}
+
+.sync-warn .btn-row {
+  margin-top: 10px;
+}
+
+/* 清空按钮单独一行，和「拿数据进出」那三个留出距离 */
+.danger-row {
+  margin-top: 12px;
+  align-items: center;
+}
+
+.btn-note {
+  font-size: 13px;
+  color: var(--ink-faint);
+}

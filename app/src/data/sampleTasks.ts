@@ -56,9 +56,11 @@ const SAMPLE_SPECS: readonly SampleSpec[] = [
  */
 export function buildSampleTasks(now: Date): Task[] {
   const base = now.getTime()
+  // 7 条共用同一个后缀，既保证人看着还是「sample-01…07」，又保证跨用户不撞号
+  const tag = sampleTag()
 
   return SAMPLE_SPECS.map((spec, index): Task => ({
-    id: spec.id,
+    id: `${spec.id}-${tag}`,
     title: spec.title,
     dueAt: spec.dueInHours === null ? null : new Date(base + spec.dueInHours * HOUR_MS).toISOString(),
     estimateMinutes: spec.estimateMinutes,
@@ -67,4 +69,23 @@ export function buildSampleTasks(now: Date): Task[] {
     // 创建时间错开一分钟，保证同分时也有确定的先后（PRD F3 要求顺序稳定可复现）
     createdAt: new Date(base - (SAMPLE_SPECS.length - index) * MINUTE_MS).toISOString(),
   }))
+}
+
+/**
+ * 示例 id 的随机后缀。
+ *
+ * 🔴 原来 id 是写死的 `sample-01`…`sample-07`，而 `id` 在云端是**全局主键**
+ *    （不是「每个用户的第 01 号」）。于是第一个把示例推到云端的人就占住了这 7 个编号，
+ *    第二个人的推送会整批被拒 —— 服务端按契约回「找不到这个任务（编号 sample-01）」，
+ *    因为「别人的行在本区不存在」。实测：新用户载入示例 → 点推送 → 7 件全拒。
+ *
+ *    加后缀之后，每个用户的示例各自生成一份编号，互不相撞。
+ *    排序不受影响：示例的 createdAt 已经互相错开一分钟，`compareEntries`
+ *    在第 3 步就分出先后，永远走不到第 4 步的 id 兜底。
+ */
+function sampleTag(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID().slice(0, 8)
+  }
+  return Math.random().toString(36).slice(2, 10)
 }

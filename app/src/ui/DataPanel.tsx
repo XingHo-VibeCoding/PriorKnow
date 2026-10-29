@@ -17,6 +17,7 @@
 
 import { useRef, useState, type ChangeEvent } from 'react'
 import { taskRepo } from '../data'
+import { loadConfig, saveCursor } from '../data/cloud-sync'
 import type { Task } from '../core/types'
 import { ErrorNote } from './ErrorNote'
 import { explainError, inputError, type ExplainedError } from './errors'
@@ -47,7 +48,7 @@ type Status =
   | { tone: 'bad'; text: string }
 
 export function DataPanel({ queue }: DataPanelProps) {
-  const { total, busy, act, loadSamples } = queue
+  const { total, busy, act, loadSamples, refresh } = queue
   const [status, setStatus] = useState<Status | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
@@ -137,6 +138,44 @@ export function DataPanel({ queue }: DataPanelProps) {
     )
   }
 
+  /**
+   * 清空本机（Day 24 追加）。
+   *
+   * 为什么单独一个按钮：本机只有**一本账**，而云端按用户分区。换用户编号时
+   * 旧账必须先请出去 —— 否则两边的任务混成一张列表，之后再也分不开。
+   * 换号那一刻「云端同步」那张卡也会拦一道并给同样的出路，这里是随时可用的入口。
+   *
+   * 🔴 两件事必须一起做：清任务 **+ 把当前用户的游标归零**。
+   *    只清任务不归零，下次拉取从旧游标开始，云端早期的记录永远拉不回来 ——
+   *    而界面上看起来一切正常，这是最难发现的那种错。
+   * 🔴 只动本机。云端一行都不碰，清完随时能重新拉回来。
+   */
+  async function handleClearAll() {
+    const { userId } = loadConfig()
+    const confirmed = window.confirm(
+      `清空这台设备上的 ${total} 件任务？\n\n` +
+        '云端的数据不受影响；清了之后同步游标会归零，下次拉取是全量，能重新拉回来。\n' +
+        '如果只是要换台设备用，建议先「导出 JSON」备份。\n\n' +
+        '确定清空吗？',
+    )
+    if (!confirmed) {
+      setStatus({ tone: 'ok', text: '已取消，本机数据未改动。' })
+      return
+    }
+
+    try {
+      const removed = await taskRepo.clearAll()
+      if (userId.trim() !== '') saveCursor(userId.trim(), 0)
+      void refresh()
+      setStatus({
+        tone: 'ok',
+        text: `已清空本机 ${removed} 件任务。云端没动，随时能再拉回来。`,
+      })
+    } catch (err) {
+      setStatus({ tone: 'bad', error: explainError(err, '清空本机数据') })
+    }
+  }
+
   return (
     <section className="card">
       <h2>数据与设置</h2>
@@ -156,6 +195,17 @@ export function DataPanel({ queue }: DataPanelProps) {
         <button type="button" className="danger" onClick={handleLoadSamples} disabled={busy}>
           载入示例数据
         </button>
+      </div>
+
+      {/* 清空单独一行，不和上面三个挤在一起 ——
+          上面三个是「拿数据进出」，这个是把账本清掉，性质不同，要留出距离。 */}
+      <div className="btn-row danger-row">
+        <button type="button" className="danger" onClick={handleClearAll} disabled={busy || total === 0}>
+          清空本机 {total} 件任务
+        </button>
+        <span className="btn-note">
+          只清这台设备，云端不动；清了之后游标归零，下次拉取是全量
+        </span>
       </div>
 
       <input

@@ -124,6 +124,21 @@ export class IndexedDbTaskRepository implements TaskRepository {
   }
 
   /**
+   * 清空本机全部任务，返回删掉的条数（Day 24 追加）。
+   *
+   * 为什么不用 `importAll([])` —— 它也能清空，但语义是「导入一个空文件」，
+   * 而且它会把「规范化」那一套校验跑一遍（对空数组没意义）。
+   * 换用户这件事需要一个**说得出口**的方法名，调用处才读得懂自己在干什么。
+   *
+   * 🔴 只动本机，云端不动；也不碰同步游标（见 TaskRepository 的注释）。
+   */
+  async clearAll(): Promise<number> {
+    const count = await this.db.tasks.count()
+    await this.db.tasks.clear()
+    return count
+  }
+
+  /**
    * 把云端拉回来的变化落地（Day 20）。
    *
    * 整批放进**一个事务**：中途出错就一条都不写，不会留下「写了一半」的库。
