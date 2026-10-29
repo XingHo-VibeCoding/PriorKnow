@@ -145,7 +145,12 @@ async function findByIds(ids, userId) {
     const rows = await queryAll(
       getDb()
         .from('tasks')
-        .select('id,title,status,due_at,estimate_minutes,importance,created_at,deleted_at,purged_at')
+        // 🔴 Day 22 起必须带 seq：DELETE 的幂等分支要回「这条当前的序号」。
+        //    漏了它 → `Number(undefined)` = NaN → JSON 里变成 null，
+        //    前端拿到的 cursor 是 null，看着像接口坏了（数据其实没错）。
+        //    ⚠️ 加这一列对 POST 无影响：buildRow 是**显式列举**字段拼整行的，
+        //       `seq` 永远不会被带进写库的 row（那条规则见 mapper.js 顶部）。
+        .select('id,seq,title,status,due_at,estimate_minutes,importance,created_at,deleted_at,purged_at')
         .eq('user_id', userId)
         .in('id', batch)
     )
