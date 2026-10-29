@@ -88,6 +88,9 @@ const {
   handlePatchTask,
   handleDeleteTask,
 } = require('./tasks/handlers')
+// 追加需求：今日预算（按日期存，见 db/migrate-03-budget.sql）
+const budgetHandlers = require('./budget/handlers')
+const { handleGetBudget, handlePostBudget } = budgetHandlers
 
 exports.main = async (event, context) => {
   try {
@@ -161,6 +164,8 @@ async function route(event, context) {
 
   // ── 路由分派 ────────────────────────────────────────
   const isTasks = path === '/tasks' || path === '/api/tasks'
+  // `/budget` 与 `/api/budget` 都认（网关剥前缀，本地直连不剥）
+  const isBudget = path === '/budget' || path === '/api/budget'
 
   // ── 带 id 的路径：`/tasks/:id`（Day 22 PATCH / DELETE 用）──────────
   // 🔴 只认**一段** id：`/tasks/a/b` 不匹配，落到 404。
@@ -210,6 +215,17 @@ async function route(event, context) {
       return await handleGetTasks(url.searchParams, http.headers)
     }
 
+    // ── GET /api/budget?date=YYYY-MM-DD（追加需求）─────────────
+    if (isBudget) {
+      let url
+      try {
+        url = new URL(rawUrl, 'http://localhost')
+      } catch {
+        url = new URL('http://localhost/')
+      }
+      return await handleGetBudget(url.searchParams, http.headers)
+    }
+
     // 契约外路径一律 404
     return reply(404, { ok: false, data: null, error: '没有这个接口' })
   }
@@ -217,6 +233,8 @@ async function route(event, context) {
   // ── POST /api/tasks —— 契约第三节第 2 个接口（Day 18）──────────
   if (method === 'POST') {
     if (isTasks) return await handlePostTasks(event, http.headers)
+    // ── POST /api/budget（追加需求）────────────────────────────
+    if (isBudget) return await handlePostBudget(event, http.headers)
     // 契约里登记过的才写，契约外的不写
     return reply(404, { ok: false, data: null, error: '没有这个接口' })
   }
@@ -275,4 +293,7 @@ exports.__test__ = {
   toTaskDto,
   toIso,
   readHeader,
+  // 预算侧的两个纯校验函数（本机回归脚本直接调，不必起 HTTP）
+  judgeBudgetDate: budgetHandlers.judgeDate,
+  judgeBudgetMinutes: budgetHandlers.judgeMinutes,
 }

@@ -13,6 +13,7 @@ import { useState, type FormEvent } from 'react'
 import { taskRepo } from '../data'
 import { DEFAULT_IMPORTANCE, type Importance } from '../core/types'
 import { ErrorNote } from './ErrorNote'
+import { DEFAULT_DUE_TIME, TimePicker } from './TimePicker'
 import { explainError, inputError, type ExplainedError } from './errors'
 
 const STARS: Importance[] = [1, 2, 3, 4, 5]
@@ -24,7 +25,11 @@ interface TaskComposerProps {
 
 export function TaskComposer({ onCreated }: TaskComposerProps) {
   const [title, setTitle] = useState('')
-  const [dueLocal, setDueLocal] = useState('')
+  // 截止时间拆成「日期 + 时刻」两半：日期仍用原生控件（用户说日期还行），
+  // 时刻换成自绘的滚轮时钟（见 TimePicker.tsx）。原来是一个 datetime-local，
+  // 时间那半只能靠浏览器给的下拉，格格不入。
+  const [dueDate, setDueDate] = useState('')
+  const [dueTime, setDueTime] = useState(DEFAULT_DUE_TIME)
   const [estimate, setEstimate] = useState('')
   const [importance, setImportance] = useState<Importance>(DEFAULT_IMPORTANCE)
   // Day 23：错误不再是裸字符串，而是「哪一类 + 一句人话」。
@@ -42,9 +47,18 @@ export function TaskComposer({ onCreated }: TaskComposerProps) {
       return
     }
 
-    // datetime-local 控件给的是本地时间字符串（形如 2026-09-23T18:00，不带时区）。
+    // 日期与时刻拼成本地时间字符串（形如 2026-09-23T22:30，不带时区），
     // 先交给 Date 按本地时区解析，再转成 ISO 字符串入库，避免时区歧义。
-    const dueAt = dueLocal === '' ? null : new Date(dueLocal).toISOString()
+    // ⚠️ 不选日期 = 没有截止时间（存 null）。时刻永远有值，所以只判日期。
+    let dueAt: string | null = null
+    if (dueDate !== '') {
+      const parsed = new Date(`${dueDate}T${dueTime}`)
+      if (Number.isNaN(parsed.getTime())) {
+        setFailure(inputError('这个日期看不懂，换一个再试'))
+        return
+      }
+      dueAt = parsed.toISOString()
+    }
 
     // ⚠️ 耗时留空必须存 null（表示「未估算」），**不能存 0**。
     // 算法里 0 分钟会被当成「瞬间完成」，省时度直接顶格，等于凭空加分。
@@ -61,7 +75,8 @@ export function TaskComposer({ onCreated }: TaskComposerProps) {
 
       // 清空表单，方便连着加下一条；重要度回到默认的 3 星
       setTitle('')
-      setDueLocal('')
+      setDueDate('')
+      setDueTime(DEFAULT_DUE_TIME)
       setEstimate('')
       setImportance(DEFAULT_IMPORTANCE)
 
@@ -86,15 +101,20 @@ export function TaskComposer({ onCreated }: TaskComposerProps) {
       />
 
       <div className="composer-row">
-        <label className="field">
+        <div className="field">
           <span>截止时间</span>
-          <input
-            type="datetime-local"
-            value={dueLocal}
-            onChange={(event) => setDueLocal(event.target.value)}
-            disabled={busy}
-          />
-        </label>
+          <div className="due-row">
+            <input
+              className="due-date"
+              type="date"
+              value={dueDate}
+              onChange={(event) => setDueDate(event.target.value)}
+              disabled={busy}
+              aria-label="截止日期"
+            />
+            <TimePicker value={dueTime} onChange={setDueTime} disabled={busy || dueDate === ''} />
+          </div>
+        </div>
 
         <label className="field">
           <span>预计耗时</span>

@@ -163,7 +163,9 @@ priorknow/
 > - `core/parser.ts`（自然语言解析）**本期没做**，PRD 里它是可选增强；
 > - `data/cloud-cloudbase.ts` 实际叫 `data/cloud-sync.ts`，且 `repository.ts` **不 import 它**；
 > - 新增 `data/errors.ts`（错误类型，跟着抛它的层走）与 `ui/errors.ts`（把类型翻成人话）；
-> - 新增 `cloudfunctions/api-health/`，第 3 周的后端全在这一个函数里。
+> - 新增 `cloudfunctions/api-health/`，第 3 周的后端全在这一个函数里；
+> - 追加需求又加了 `ui/TimePicker.tsx`（滚轮时间选择）与 `data/budget.ts`（预算的本机 + 云端存取），
+>   后者对应**第二张表** `daily_budget`（见 `api-contract.md` 第五节与 `db/migrate-03-budget.sql`）。
 
 ---
 

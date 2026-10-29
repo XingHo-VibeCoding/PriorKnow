@@ -349,3 +349,44 @@ export function activeConfig(): SyncConfig | null {
   const config = loadConfig()
   return config.baseUrl.trim() && config.userId.trim() ? config : null
 }
+
+// ---------- 追加需求（Day 24 之后）：今日预算 ----------
+// ⚠️ 这不是课程 Day 25 的内容 —— 那天是「做 verify-project Skill」。
+
+/** 预算接口的 data 形状（契约第六节 5b / 5c 条） */
+export interface BudgetData {
+  /** 本地日历日 'YYYY-MM-DD' */
+  date: string
+  /** null = 那天没填过（**不是 0** —— 「今天一分钟都没有」与「还没填」是两回事） */
+  minutes: number | null
+  updatedAt: string | null
+}
+
+/**
+ * 读某一天的预算。
+ *
+ * ⚠️ 日期由**客户端**算好再传，不让服务端自己取「今天」：
+ *    服务端在 UTC，用户在 +08:00，晚上 8 点之后两边会差一天，
+ *    存进去的预算第二天早上就「不见了」。
+ */
+export async function fetchBudget(date: string, config: SyncConfig): Promise<BudgetData> {
+  return request<BudgetData>(`/budget?date=${encodeURIComponent(date)}`, { method: 'GET' }, config)
+}
+
+/**
+ * 写某一天的预算。`minutes: null` = 清空那天。
+ *
+ * 用 POST 而不是 PUT：与 /api/tasks 同一个理由 —— 契约里没有 PUT，
+ * 而且这个动作本身就是「有就改、没有就建」的 upsert，正是 POST 的语义。
+ */
+export async function postBudget(
+  date: string,
+  minutes: number | null,
+  config: SyncConfig,
+): Promise<BudgetData> {
+  return request<BudgetData>(
+    '/budget',
+    { method: 'POST', body: JSON.stringify({ date, minutes }) },
+    config,
+  )
+}

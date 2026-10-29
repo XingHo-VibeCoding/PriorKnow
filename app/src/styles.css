@@ -271,13 +271,74 @@ body {
   color: var(--ink-faint);
 }
 
+/* 预算存到哪儿了（追加需求加）—— 一行小字，不抢戏但必须看得见。
+   用户有权知道自己填的数只在本机、还是已经上了云。 */
+.budget-sync {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: var(--ink-faint);
+  min-height: 1em; /* 空着也占位，避免出现/消失时下面的内容跳一下 */
+}
+
+.budget-sync-error {
+  margin-top: 10px;
+}
+
+/* 空状态提示：还没填预算时主动问一句。
+   刻意做成一块「面板」而不是又一行灰字 —— 它是这一屏唯一在等用户动手的地方。 */
+.budget-prompt {
+  margin-top: 14px;
+  padding: 14px 16px;
+  border: 1px dashed #d9d3c6;
+  border-radius: 12px;
+  background: #fbfaf7;
+}
+
+.budget-prompt-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.budget-prompt-sub {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.budget-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.budget-chip {
+  padding: 5px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--card);
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  transition:
+    border-color 0.15s,
+    color 0.15s;
+}
+
+.budget-chip:hover {
+  border-color: #cfc9bb;
+  color: var(--ink);
+}
+
 .budget-sum {
   margin: 14px 0 8px;
   font-size: 14px;
   color: var(--ink-soft);
-}
-
-.budget-sum strong {
+}.budget-sum strong {
   color: var(--accent);
   font-size: 16px;
 }
@@ -390,6 +451,224 @@ body {
 
 .field input[type='number'] {
   width: 148px;
+}
+
+/* ---- 截止时间：日期 + 滚轮时钟（对应 TimePicker.tsx） ----
+ *
+ * 用滚轮代替原生时间下拉。三个数必须互相咬死，改一个就要改另两个：
+ *   格子高 36px（TimePicker.tsx 的 ITEM_H）· 可见 5 格 = 180px · 上下留白各 72px（2 格）
+ * 上下留白是为了让「第一项」和「最后一项」也能滚到正中间 ——
+ * 少了它，00 时永远停在最上面、选不中。
+ */
+.due-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.due-date {
+  width: 148px;
+}
+
+.time-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* 触发按钮本身就是一个小数字时钟：两位数字各一个框，中间一个冒号。
+   ⚠️ 这个框只是「样子」，真正的输入器件是下面展开的两列滚轮。 */
+.time-trigger {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.time-trigger:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.time-digit {
+  min-width: 34px;
+  padding: 4px 5px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--card);
+  color: var(--ink);
+  font-size: 17px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  transition: border-color 0.15s;
+}
+
+.time-trigger:hover:not(:disabled) .time-digit {
+  border-color: #cfc9bb;
+}
+
+/* 展开时边框转深色：表示「这个控件现在开着」。
+   这里**不用强调红** —— 红只留给页面上唯一那个「该点的东西」。 */
+.time-trigger.open .time-digit {
+  border-color: var(--ink);
+}
+
+.time-trigger:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 10px;
+}
+
+.time-colon {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--ink-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 面板在**原地展开**，不做浮层：
+   浮层要处理层级、点外面关掉、焦点陷阱，而这里空间本来就够，何必呢。 */
+.time-pop {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--card);
+  box-shadow:
+    0 1px 2px rgba(28, 27, 31, 0.04),
+    0 10px 28px -22px rgba(28, 27, 31, 0.22);
+}
+
+.clock {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.clock-colon {
+  padding-bottom: 2px;
+  color: var(--ink-soft);
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.wheel-box {
+  position: relative;
+  width: 56px;
+  height: 180px;
+}
+
+.wheel {
+  height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  /* 松手一定停在整格上，不停在两格之间 */
+  scroll-snap-type: y mandatory;
+  scrollbar-width: none;
+  /* 边缘渐隐：中间实、两端淡出。选中框在另一层，不受这条遮挡 */
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    #000 30%,
+    #000 70%,
+    transparent 100%
+  );
+  mask-image: linear-gradient(to bottom, transparent 0, #000 30%, #000 70%, transparent 100%);
+}
+
+.wheel::-webkit-scrollbar {
+  display: none;
+}
+
+.wheel:focus {
+  outline: none;
+}
+
+.wheel:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+  border-radius: 10px;
+}
+
+.wheel-spacer {
+  height: 72px;
+}
+
+.wheel-item {
+  display: block;
+  width: 100%;
+  height: 36px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink-faint);
+  font-family: inherit;
+  font-size: 17px;
+  font-variant-numeric: tabular-nums;
+  line-height: 36px;
+  text-align: center;
+  cursor: pointer;
+  scroll-snap-align: center;
+  transition: color 0.12s;
+}
+
+.wheel-item:hover {
+  color: var(--ink);
+}
+
+.wheel-item.on {
+  color: var(--ink);
+  font-size: 19px;
+  font-weight: 700;
+}
+
+/* 选中框贴在滚动容器上层、位置固定：它标记的是「正中间这一格」，
+   跟着滚就失去意义了。 */
+.wheel-frame {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 72px;
+  height: 36px;
+  border: 1px solid #cfc9bb;
+  border-radius: 10px;
+  pointer-events: none;
+}
+
+.time-pop-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.time-pop-note {
+  color: var(--ink-faint);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.time-pop-done {
+  padding: 5px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--card);
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+.time-pop-done:hover {
+  border-color: #cfc9bb;
 }
 
 .stars {
