@@ -14,7 +14,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { taskRepo } from '../data'
-import { activeConfig, deleteTaskRemote, patchTask } from '../data/cloud-sync'
+import { activeConfig, addPendingDelete, deleteTaskRemote, patchTask, removePendingDelete } from '../data/cloud-sync'
 import type { Task } from '../core/types'
 import { ErrorNote } from './ErrorNote'
 import { WriteErrorBar } from './WriteErrorBar'
@@ -110,7 +110,14 @@ export function TaskDetailPage({ queue }: TaskDetailPageProps) {
     const ok = await act(async () => {
       // Day 22：先删云端再删本地（顺序理由见 TasksPage 同一处注释）。
       const config = activeConfig()
-      if (config) await deleteTaskRemote(task.id, config)
+      if (config) {
+        await deleteTaskRemote(task.id, config)
+        removePendingDelete(task.id)
+      } else {
+        // 没连云端（没配地址，或本机数据属于别的号）→ 留一张欠条，
+        // 等配好之后点「推送本机任务」时补发。见 cloud-sync.ts 的 loadPendingDeletes。
+        addPendingDelete(task.id)
+      }
       await taskRepo.deleteTask(task.id)
     }, `删除「${task.title}」失败`)
     if (ok) navigate('/tasks')

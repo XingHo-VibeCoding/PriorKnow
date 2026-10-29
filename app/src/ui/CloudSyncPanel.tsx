@@ -25,12 +25,15 @@ import { useState } from 'react'
 import { taskRepo } from '../data'
 import {
   SyncError,
+  deleteTaskRemote,
   loadConfig,
   loadCursor,
   loadOwner,
+  loadPendingDeletes,
   postRows,
   pullSince,
   pushTasks,
+  removePendingDelete,
   saveConfig,
   saveCursor,
   saveOwner,
@@ -122,12 +125,66 @@ export function CloudSyncPanel({ queue }: CloudSyncPanelProps) {
     }
   }
 
-  /** ① 推送本机全部任务 */
+  /** ① 推送本机任务（并补发离线时的删除） */
   function handlePush() {
     void run(async () => {
       const tasks = await taskRepo.listTasks()
-      const data = await pushTasks(tasks, config)
-      const corrected = data.accepted.filter((item) => item.corrected).length
+      const pending = loadPendingDeletes()
+
+      // 两样都空：这不是错误，是本机确实没东西可推。
+      // 🔴 原来这里会抛「本机没有任务可推」并染成红字、贴「输入问题」标签，
+      //    还让人「在下面『云端同步』里补上」—— 而他本人就在那张卡里。
+      //    一句本地状态判断不该走错误通道。这里改成中性的一句话，并回答真正的问题：
+      //    「删除去云上了吗」。
+      if (tasks.length === 0 && pending.length === 0) {
+        return {
+          text: '本机没有任务，也没有待补发的删除 —— 没有东西要推。删除是在你点「删除」的那一刻就同步的，不需要事后补推。',
+          tone: 'ok',
+          rejected: [],
+        }
+      }
+
+      const parts: string[] = []
+      let rejected: RejectedItem[] = []
+
+      if (tasks.length > 0) {
+        const data = await pushTasks(tasks, config)
+        rejected = data.rejected
+        const corrected = data.accepted.filter((item) => item.corrected).length
+
+        parts.push(`推上去 ${data.accepted.length} 件`)
+        if (corrected > 0) parts.push(`其中 ${corrected} 件被服务端修正过（例如星级越界）`)
+        if (data.rejected.length > 0) parts.push(`另有 ${data.rejected.length} 件被拒，原因见下`)
+        parts.push(`云端本区最大序号 ${data.cursor}`)
+      } else {
+        parts.push('本机没有任务要推')
+      }
+
+      // 补发欠条：没连云端时删掉的那些任务
+      let deleted = 0
+      let alreadyGone = 0
+      for (const id of pending) {
+        try {
+          await deleteTaskRemote(id, config)
+          removePendingDelete(id)
+          deleted += 1
+        } catch (err) {
+          // 云端本来就没有这条（它从没被推上去过）→ 这笔账也算还清，不该留在清单里。
+          // 但要**说出来**：用户以为「我说要补发的那条删了」，悄悄吞掉比说错更糟。
+          const status = err instanceof SyncError ? err.status : 0
+          if (status === 404) {
+            removePendingDelete(id)
+            alreadyGone += 1
+            continue
+          }
+          // 其他原因（断网、5xx）→ 留着，下次再补。别因为一条失败把整批欠条丢掉
+          throw err
+        }
+      }
+      if (deleted > 0) parts.push(`补发 ${deleted} 条离线时的删除`)
+      if (alreadyGone > 0) {
+        parts.push(`另有 ${alreadyGone} 条云端本来就没有（从没推上去过），已从待补发清单里去掉`)
+      }
 
       // 第一次跟这个号打交道：这批任务从此归它。
       // 放在**成功之后**记，失败的东西不该被认领。
@@ -136,17 +193,10 @@ export function CloudSyncPanel({ queue }: CloudSyncPanelProps) {
         setOwner(currentUser)
       }
 
-      // ⚠️ 部分成功时不能只报好消息：201 只代表「至少有一条被接收」，
-      //    被拒的那几条如果不说，用户会以为全都上去了。
-      const parts = [`推上去 ${data.accepted.length} 件`]
-      if (corrected > 0) parts.push(`其中 ${corrected} 件被服务端修正过（例如星级越界）`)
-      if (data.rejected.length > 0) parts.push(`另有 ${data.rejected.length} 件被拒，原因见下`)
-      parts.push(`云端本区最大序号 ${data.cursor}`)
-
       return {
         text: parts.join('，') + '。',
-        tone: data.rejected.length > 0 ? 'bad' : 'ok',
-        rejected: data.rejected,
+        tone: rejected.length > 0 ? 'bad' : 'ok',
+        rejected,
       }
     })
   }

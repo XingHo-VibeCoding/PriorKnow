@@ -17,7 +17,7 @@
 
 import { useRef, useState, type ChangeEvent } from 'react'
 import { taskRepo } from '../data'
-import { loadConfig, saveCursor } from '../data/cloud-sync'
+import { clearPendingDeletes, loadConfig, saveCursor } from '../data/cloud-sync'
 import type { Task } from '../core/types'
 import { ErrorNote } from './ErrorNote'
 import { explainError, inputError, type ExplainedError } from './errors'
@@ -166,6 +166,8 @@ export function DataPanel({ queue }: DataPanelProps) {
     try {
       const removed = await taskRepo.clearAll()
       if (userId.trim() !== '') saveCursor(userId.trim(), 0)
+      // 换账 ≠ 逐条删除：欠着的删除记的是「这本账里的任务」，账都清了就不该再补发
+      clearPendingDeletes()
       void refresh()
       setStatus({
         tone: 'ok',

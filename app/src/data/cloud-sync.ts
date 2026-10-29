@@ -383,7 +383,69 @@ export async function deleteTaskRemote(id: string, config: SyncConfig): Promise<
  */
 export function activeConfig(): SyncConfig | null {
   const config = loadConfig()
-  return config.baseUrl.trim() && config.userId.trim() ? config : null
+  if (!config.baseUrl.trim() || !config.userId.trim()) return null
+
+  // 🔴 本机数据属于别人时，也不能拿当前编号的名义去改云端。
+  //    否则换号之后点「删除」，DELETE 会打到新号的区里 —— 那边根本没有这个 id，
+  //    服务端回 404，界面只会说「删除失败」，而真正该做的是先把这本账清出去。
+  //    返回 null 的语义是「这次操作不碰云端」，删除就只是本机删除，不报错也不写脏。
+  const owner = loadOwner()
+  if (owner !== null && owner !== config.userId.trim()) return null
+
+  return config
+}
+
+// ---------- 待补发的删除（追加需求 day24c） ----------
+
+/**
+ * 没连云端时删掉的任务 id。
+ *
+ * 存在的理由很具体：删除是「即时同步」的（点删除 → 先 DELETE 云端 → 再删本机），
+ * 但**没配接口地址时那条 DELETE 根本发不出去**。于是本机空了、云端还满着，
+ * 用户之后点「推送本机任务」只会得到一句「本机没有任务可推」——
+ * 云端那批还在，而且下次拉取会全部「复活」。
+ *
+ * 所以离线删除要留一张欠条：等配好地址再推送时，把欠的删除补发掉。
+ *
+ * 🔴 不带用户编号：推送前已经有一道 owner 闸（activeConfig 会返回 null），
+ *    走不到「拿 A 的欠条去删 B 的东西」这条路上。
+ */
+const PENDING_KEY = 'priorknow-pending-deletes'
+
+export function loadPendingDeletes(): string[] {
+  try {
+    const raw = localStorage.getItem(PENDING_KEY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw) as unknown
+    if (!Array.isArray(parsed)) return []
+    return parsed.filter((id): id is string => typeof id === 'string' && id !== '')
+  } catch {
+    return []
+  }
+}
+
+function savePendingDeletes(ids: string[]): void {
+  // 去重，且保持「先欠先还」的顺序
+  const unique = [...new Set(ids)]
+  if (unique.length === 0) localStorage.removeItem(PENDING_KEY)
+  else localStorage.setItem(PENDING_KEY, JSON.stringify(unique))
+}
+
+export function addPendingDelete(id: string): void {
+  const list = loadPendingDeletes()
+  if (list.includes(id)) return
+  savePendingDeletes([...list, id])
+}
+
+export function removePendingDelete(id: string): void {
+  const list = loadPendingDeletes()
+  if (!list.includes(id)) return
+  savePendingDeletes(list.filter((x) => x !== id))
+}
+
+/** 清空本机（换账）时一并清掉 —— 那不是「逐条删除」，是整本账不要了 */
+export function clearPendingDeletes(): void {
+  localStorage.removeItem(PENDING_KEY)
 }
 
 // ---------- 追加需求（Day 24 之后）：今日预算 ----------

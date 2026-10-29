@@ -18,7 +18,7 @@
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { taskRepo } from '../data'
-import { activeConfig, deleteTaskRemote } from '../data/cloud-sync'
+import { activeConfig, addPendingDelete, deleteTaskRemote, removePendingDelete } from '../data/cloud-sync'
 import { CloudSyncPanel } from './CloudSyncPanel'
 import { ErrorNote } from './ErrorNote'
 import { DataPanel } from './DataPanel'
@@ -179,8 +179,15 @@ export function TasksPage({ queue, notice, onCreated }: TasksPageProps) {
                                 //    下次拉取会把这条墓碑之外的原行拉回来「复活」，
                                 //    而且中间那段时间用户以为已经删了。
                                 // ⚠️ 没配云端（config 为 null）就只删本地，不报错。
+                                //    但**要留一张欠条** —— 否则本机删干净了、云端还满着，
+                                //    之后点推送只会得到「本机没有任务可推」，而且下次拉取会全部复活。
                                 const config = activeConfig()
-                                if (config) await deleteTaskRemote(task.id, config)
+                                if (config) {
+                                  await deleteTaskRemote(task.id, config)
+                                  removePendingDelete(task.id)
+                                } else {
+                                  addPendingDelete(task.id)
+                                }
                                 await taskRepo.deleteTask(task.id)
                                 // 🔴 刻意**不**用 DELETE 返回的 cursor 去挪本地游标：
                                 //    那会跳过 seq 在它之前的其他变更，静默丢数据。
