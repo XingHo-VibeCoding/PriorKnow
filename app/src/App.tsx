@@ -70,7 +70,14 @@ export function App() {
         </div>
         <p className="tagline">下一步做什么，让队列告诉你。</p>
         <p className="sub">把一堆散乱的任务丢进来，它算出先做哪件，并告诉你为什么。</p>
-        <div className="badge">Day 24 · 用一个真实 Bug 练习定位和修复</div>
+        {/* 🔴 Day 24 收尾：徽章分两副面孔。
+            · 开发时（npm run dev）= 打卡进度，方便截图交作业；
+            · 构建后（npm run build）= 产品定位，因为**「Day 24」在评委眼里就是作业**，
+              写在页头最显眼的位置等于自报「这是个打卡项目」。
+            同一个位置、同一行代码，只是看的人不同，要说的话就不同。 */}
+        <div className="badge">
+          {import.meta.env.DEV ? 'Day 24 · 用一个真实 Bug 练习定位和修复' : 'v1.0 · 可解释的自动排序'}
+        </div>
       </header>
 
       {/* 视图切换入口。放在页头下方 —— 先认地方，再看内容。 */}
@@ -99,8 +106,17 @@ export function App() {
       </Routes>
 
       {/* 数据层状态开关（开发用）。Day 13 从「数据与设置」搬到这里，
-          好让三个视图都能在同一位置随时切、随时看四种状态。 */}
-      <DevStateSwitch dataMode={dataMode} onDataModeChange={setDataMode} />
+          好让三个视图都能在同一位置随时切、随时看四种状态。
+
+          🔴 Day 24 收尾：**只在开发时渲染**。
+          它原来会连生产包一起发出去 —— 于是评委打开公网链接，
+          在页面底部能看到「数据层状态（开发用）· 模拟读取失败 · 模拟写入失败」
+          和一段「本地数据库读一次只要几毫秒，这些状态平时根本看不见」的说明。
+          那不是一个产品该给用户看的东西，是一张工作台的照片。
+          四种状态仍然能在本机 `npm run dev` 里演 —— 要给评委演示的话用本机。 */}
+      {import.meta.env.DEV && (
+        <DevStateSwitch dataMode={dataMode} onDataModeChange={setDataMode} />
+      )}
 
       <footer className="foot">知先 PriorKnow · Next Action Scheduler</footer>
 
