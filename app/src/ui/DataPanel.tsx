@@ -113,8 +113,8 @@ export function DataPanel({ queue }: DataPanelProps) {
       <h2>数据与设置</h2>
 
       <p className="hint">
-        任务只存在<strong>这台设备的浏览器里</strong>，不上传任何服务器。导出成 JSON 可以备份，
-        或者换台电脑导入过去。
+        任务是<strong>这台设备本地</strong>的：导出成 JSON 可以备份，或者换台电脑导进去。
+        想让它出现在云端和别的设备上，用下面的「云端同步」。
       </p>
 
       <div className="btn-row">
