@@ -143,6 +143,21 @@ export function saveConfig(config: SyncConfig): void {
   localStorage.setItem(CONFIG_KEY, JSON.stringify(config))
 }
 
+/**
+ * 游标被改过时广播的事件。
+ *
+ * 为什么需要它：游标存在 localStorage 里，但**有好几个地方会写** ——
+ * 拉取（推进）、清空本机（归零）、换用户编号（换一个号的位置）。
+ * 而「云端同步」那张卡把游标缓存在自己的 state 里用于显示和请求。
+ *
+ * 🔴 实测后果（真的踩了）：本机拉过一次（游标 246）→ 去「数据与设置」清空本机
+ *    （localStorage 游标归零）→ 回到同步卡点「拉取」→ 卡片手里还是 246 →
+ *    `?since=246` 只拿回清空之后的变化，7 条历史数据只回来 1 条 ——
+ *    界面还显示「拉到 1 条变化」，一切看起来正常。
+ *    这正是「本地清空后云端覆盖不回来」的真正原因。
+ */
+export const CURSOR_CHANGED_EVENT = 'priorknow:cursor-changed'
+
 /** 这个用户上次拉到的位置。0 表示「还没从云端拉过」 */
 export function loadCursor(userId: string): number {
   const who = userId.trim()
@@ -155,6 +170,8 @@ export function saveCursor(userId: string, cursor: number): void {
   const who = userId.trim()
   if (!who) return
   localStorage.setItem(CURSOR_PREFIX + who, String(Math.max(0, Math.floor(cursor))))
+  // 通知所有正在显示游标的界面：这个数变了
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event(CURSOR_CHANGED_EVENT))
 }
 
 /** 本机数据归属哪个用户编号；null = 还没跟云端打过交道 */

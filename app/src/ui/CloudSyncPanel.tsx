@@ -21,9 +21,10 @@
 //       而本机可能还没拉过别的设备写在这个序号之前的记录 —— 直接当 since 会跳过它们。
 //       游标只由 GET 的 cursor 推进。
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { taskRepo } from '../data'
 import {
+  CURSOR_CHANGED_EVENT,
   SyncError,
   deleteTaskRemote,
   loadConfig,
@@ -85,6 +86,18 @@ export function CloudSyncPanel({ queue }: CloudSyncPanelProps) {
 
   /** 当前填的用户编号（去掉首尾空格） */
   const currentUser = config.userId.trim()
+
+  /**
+   * 游标是存在 localStorage 里的，但写它的不止这一张卡
+   * （拉取推进、清空本机归零、换号换位置）。
+   * 所以显示值必须跟着广播走 —— 否则清空本机之后这张卡还拿着旧游标，
+   * 一点拉取就 `?since=旧游标`，把历史数据全跳过且不报错。
+   */
+  useEffect(() => {
+    const sync = () => setCursor(loadCursor(currentUser))
+    window.addEventListener(CURSOR_CHANGED_EVENT, sync)
+    return () => window.removeEventListener(CURSOR_CHANGED_EVENT, sync)
+  }, [currentUser])
 
   /**
    * 本机数据属于别人 —— 唯一需要「先处理再继续」的状态。
@@ -204,7 +217,9 @@ export function CloudSyncPanel({ queue }: CloudSyncPanelProps) {
   /** ② 按游标拉变化 —— Day 20 起会真的写进本机库 */
   function handlePull() {
     void run(async () => {
-      const data = await pullSince(cursor, config)
+      // 🔴 起点以 localStorage 为准，不信组件手里的 state ——
+      //    清空本机是在「数据与设置」那张卡里把游标归零的，这张卡可能还不知道。
+      const data = await pullSince(loadCursor(currentUser), config)
 
       // 🔴 顺序不能反：先落库、再挪游标。
       //    万一落库失败而游标已经前进了，那批变化就永远拉不回来了（云端不会再发一次）。
