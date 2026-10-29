@@ -1297,6 +1297,49 @@ a.state-action {
   overflow-wrap: anywhere;
 }
 
+/* ---- 写操作失败的那一条（Day 24）----
+ *
+ * 和「整页错误态」的区别是**位置**，不是样式：
+ * 整页错误态把内容换掉，它只是往内容上方补一条 —— 列表还在下面，
+ * 用户看得见自己的数据，也还能接着点。
+ *
+ * 用 flex 而不是让按钮另起一行：这类提示多数只有一行字，
+ * 竖排会在手机上多占一整行高度。
+ */
+.write-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 14px 0 0;
+}
+
+/* .status 自带 margin-top，放进 flex 里会把按钮顶偏，这里归零 */
+.write-error-text {
+  flex: 1;
+  margin: 0;
+}
+
+.write-error-close {
+  flex: none;
+  margin-top: 7px;
+  padding: 2px 8px;
+  /* 边框用 --warn(#b3372a) 的淡版。不用 color-mix：
+     这个文件通篇是写死的色值，混进来一种新语法，
+     下次改主题色的人会漏掉它。 */
+  border: 1px solid rgba(179, 55, 42, 0.28);
+  border-radius: 7px;
+  background: transparent;
+  color: var(--warn);
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.5;
+  cursor: pointer;
+}
+
+.write-error-close:hover {
+  background: var(--warn-soft);
+}
+
 /* ---- 云端同步（试运行） ---- */
 
 /* 接口地址比用户编号长得多，所以竖排、各自撑满一行。

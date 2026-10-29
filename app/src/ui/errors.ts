@@ -73,6 +73,14 @@ const STORAGE_HINTS: Record<string, string> = {
   AbortError:
     '写入被中途打断了 —— 常见原因是另一个标签页同时在改这批数据。关掉多余的标签页，再试一次。',
   ConstraintError: '和库里已有的记录撞了（同一条任务被写了两遍）。刷新列表后重试。',
+  // Day 24：Dexie 批量写失败时抛的是**另一个名字**，不是上面那几个。
+  // 「导入 JSON」走的正是批量写（bulkAdd），所以撞主键时到不了 ConstraintError，
+  // 而是落到这里 —— 之前没这一条，它就被归到 unknown，把
+  // `tasks.bulkAdd(): 1 of 2 operations failed. Errors: ConstraintError: …`
+  // 这段英文原文直接摊到用户脸上（Day 23 修掉的那类问题，从这条路又漏回来了）。
+  BulkError:
+    '这一批里有的没能写进去。最常见的原因是「同一条任务出现了两遍」（编号撞了）—— ' +
+    '导入文件里如果有重复的 id，删掉重复的再试一次。',
   DataError: '要存的内容类型不对 —— 多半是某个数值字段被填成了文字。检查后重试。',
   NotFoundError: '要改的那条记录已经不在本地库里了。刷新列表看看它是不是被删了。',
   InvalidStateError: '浏览器把这个本地库的连接关掉了。刷新页面即可恢复。',

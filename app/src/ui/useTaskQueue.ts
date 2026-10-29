@@ -81,8 +81,28 @@ export interface TaskQueue {
    * Day 23 起它不再是一个裸字符串：同一句「失败」要能说清是哪一类
    * （输入 / 网络 / 服务端 / 本机），所以换成 explainError 的产物。
    * 界面用 ErrorNote 原样渲染，不需要自己再拼「失败：」三个字。
+   *
+   * 🔴 Day 24：**它现在只表示「读不出来」**。
+   *    在 Day 24 之前，写操作失败也往这里写 —— 而三个页面都是
+   *    「error 非空就整页换成错误块」，于是「这件任务没删掉」会变成
+   *    「你的任务列表读不出来了」，列表上一条都不剩。写失败有它自己的
+   *    去处：下面的 writeError。
    */
   error: ExplainedError | null
+  /**
+   * 写操作失败的提示（Day 24 加）。**与 error 分开，是这个字段存在的全部理由。**
+   *
+   * 为什么必须分开：error 是一个「整页开关」——
+   *   今日队列 / 全部任务 / 任务详情三处都是「error 非空 → 不渲染内容」。
+   * 用它表示写失败，等于因为一次「没删掉」把用户手上的一整页数据藏起来，
+   * 而读库本身好好的，页面标题还会说成「任务列表没读出来」。
+   *
+   * 所以：读失败 → error（整页换掉）；写失败 → writeError（原地补一条，列表不动）。
+   * 判据很简单 —— **用户还能不能继续看见并操作他原来的数据**。
+   */
+  writeError: ExplainedError | null
+  /** 关掉那条写失败提示 */
+  dismissWriteError: () => void
   /** 本次渲染用的「现在」。分数与「还剩几天」都由它算，保证同一屏里自洽 */
   now: Date
   /** 重新读库 + 重置时刻 */
@@ -109,6 +129,7 @@ export function useTaskQueue(dataMode: DataMode): TaskQueue {
   const [busy, setBusy] = useState(false)
   const [busyTaskId, setBusyTaskId] = useState<string | null>(null)
   const [error, setError] = useState<ExplainedError | null>(null)
+  const [writeError, setWriteError] = useState<ExplainedError | null>(null)
   const [now, setNow] = useState(() => new Date())
   const [feedback, setFeedback] = useState<ActionFeedback | null>(null)
 
@@ -176,6 +197,12 @@ export function useTaskQueue(dataMode: DataMode): TaskQueue {
    * 「置忙 → try → 重读 → catch → 复位」这一套。更重要的是：
    * **任何一次写入之后都会重读队列**，所以「改完自动重排」是结构性保证，
    * 而不是每个按钮各自记得去调一次刷新。
+   *
+   * 🔴 Day 24 修的就是这里的 catch：
+   *    它原来写的是 `setError(...)`，而 error 是三个页面的「整页换掉」开关 ——
+   *    于是「这条没删掉」会把用户的任务列表整块换成「任务列表没读出来」。
+   *    现在写失败只落到 writeError，列表原地留着，用户看得见自己的数据、
+   *    也还能接着操作。区别不在文案，在**用户还看不看得见自己的东西**。
    */
   const act = useCallback(
     async (action: () => Promise<unknown>, failureNote: string): Promise<boolean> => {
@@ -184,9 +211,10 @@ export function useTaskQueue(dataMode: DataMode): TaskQueue {
         await gateWrite()
         await action()
         await refresh()
+        setWriteError(null)
         return true
       } catch (err) {
-        setError(explainError(err, failureNote))
+        setWriteError(explainError(err, failureNote))
         return false
       } finally {
         setBusy(false)
@@ -194,6 +222,8 @@ export function useTaskQueue(dataMode: DataMode): TaskQueue {
     },
     [gateWrite, refresh],
   )
+
+  const dismissWriteError = useCallback(() => setWriteError(null), [])
 
   const total = tasks.length
 
@@ -217,11 +247,13 @@ export function useTaskQueue(dataMode: DataMode): TaskQueue {
   /**
    * 标记完成 —— Day 11 的主交互。
    *
-   * ⚠️ 为什么不复用 act()：act 失败时会 setError，而 error 非空会让整个队列
-   * 换成「队列没读出来」那一整块错误页。**但写入失败不该把读得好好的队列也换掉** ——
-   * 用户遇到的是「这一件没完成」，不是「队列看不见了」。整页报错还会把
-   * 「重试」指向重新读库，可读库本来就是好的，按了也没用。
-   * 所以这里自己管 busy，失败只走提示条：说清是哪一件、并且能重试。
+   * ⚠️ 为什么不复用 act()：act 只能给出一句「某某失败」，
+   * 而「完成」失败需要说清**是哪一件**、并且当场给一个「重试」——
+   * 所以它要自己管 busy，失败走那条带按钮的提示条（ActionToast 的 failed 分支）。
+   *
+   * （Day 24 之前这里的理由是「act 失败会把整页换成错误页」。那条理由
+   *   现在已经不成立了 —— act 不再碰 error。但这几行仍然保留，因为
+   *   「失败要说清是哪一件、并且能重试」这个需求，act 的单句提示满足不了。）
    */
   const completeTask = useCallback(
     async (id: string, title: string): Promise<boolean> => {
@@ -311,6 +343,8 @@ export function useTaskQueue(dataMode: DataMode): TaskQueue {
     busy,
     busyTaskId,
     error,
+    writeError,
+    dismissWriteError,
     now,
     refresh,
     act,

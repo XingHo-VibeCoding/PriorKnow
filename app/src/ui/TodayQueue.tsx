@@ -27,6 +27,7 @@ import { taskRepo } from '../data'
 import type { QueueEntry } from '../core/priorityQueue'
 import type { Task } from '../core/types'
 import { ErrorNote } from './ErrorNote'
+import { WriteErrorBar } from './WriteErrorBar'
 import { formatMinutes } from './format'
 import type { TaskQueue } from './useTaskQueue'
 
@@ -45,8 +46,22 @@ interface TodayQueueProps {
 }
 
 export function TodayQueue({ queue, notice, onStartFocus }: TodayQueueProps) {
-  const { ranked, done, total, loaded, busy, busyTaskId, error, now, act, refresh, loadSamples, completeTask } =
-    queue
+  const {
+    ranked,
+    done,
+    total,
+    loaded,
+    busy,
+    busyTaskId,
+    error,
+    writeError,
+    dismissWriteError,
+    now,
+    act,
+    refresh,
+    loadSamples,
+    completeTask,
+  } = queue
 
   // 哪张卡片被点开了。只允许开一张：同时展开多张会把队列读成一堆碎片。
   const [openId, setOpenId] = useState<string | null>(null)
@@ -300,6 +315,11 @@ export function TodayQueue({ queue, notice, onStartFocus }: TodayQueueProps) {
         )}
         {notice !== '' && <span className="queue-notice">· {notice}</span>}
       </p>
+
+      {/* Day 24：删除失败只在这里说一句，队列照常留着。
+          在这之前它会把整块队列换成「队列没读出来」，标题和内容还自相矛盾
+          （标题说读、内容说写），用户会以为自己的待办丢了。 */}
+      <WriteErrorBar error={writeError} onDismiss={dismissWriteError} />
 
       {visible.length === 0 ? (
         <div className="filter-empty">

@@ -30,16 +30,21 @@ interface DataPanelProps {
  * 一次操作的结果提示。tone 决定它是绿的还是红的。
  *
  * Day 23 起失败的那一支不再是一条裸字符串，而是 explainError 的产物 ——
- * 于是「导出失败」「文件格式不对」「导入没完成」三种坏消息各自带上
- * 自己的类别标签，而不是三句长得一样的「某某失败：xxx」。
+ * 于是「导出失败」「文件格式不对」两种坏消息各自带上自己的类别标签。
  *
  * 用判别联合（而不是 `{text, tone, error?}` 那种可选字段）是为了让
- * 「成功必有文案、失败必有类别」由**类型系统**保证：
- * 少填一样就编译不过，不必等到运行时才发现提示是空白的。
+ * 「成功必有文案、失败必有内容」由**类型系统**保证：少填一样就编译不过。
+ *
+ * Day 24 加了第三支 `{tone:'bad'; text}`：**不带标签的失败**。
+ * 它只用于一种情况 —— 原因已经由别处说过了（导入失败的真实原因由
+ * useTaskQueue 的 writeError 报在页面上方），这里只需要补一句「原数据没动」。
+ * 硬给它贴一个标签反而会说错：导入可能因为编号撞了（输入）、
+ * 也可能因为存储满了（本机），这一层根本不知道是哪一种。
  */
 type Status =
   | { tone: 'ok'; text: string }
   | { tone: 'bad'; error: ExplainedError }
+  | { tone: 'bad'; text: string }
 
 export function DataPanel({ queue }: DataPanelProps) {
   const { total, busy, act, loadSamples } = queue
@@ -112,11 +117,12 @@ export function DataPanel({ queue }: DataPanelProps) {
         ? { tone: 'ok', text: `已导入 ${parsed.length} 件任务，原有数据已被替换。` }
         : {
             tone: 'bad',
-            // 数据层会逐条验完才动库，所以走到这里原数据一定是安全的。
-            // 具体是哪一条、哪个字段，在队列那一块会以「输入问题」的形式列出来。
-            error: inputError(
-              '导入未完成：文件内容有问题，你原来的数据没有被改动（具体是哪一条，见队列那一块的提示）。',
-            ),
+            // Day 24：这句话原来写的是「文件内容有问题」—— 那是猜的。
+            // 导入失败的真原因可能是编号撞了（输入），也可能是存储满了（本机），
+            // 猜错比不说更糟：用户会去改文件，而该做的是导出备份清空间。
+            // 真实原因由写失败那条提示说（useTaskQueue 的 writeError，在本页上方），
+            // 这里只补用户最关心的那件事：**原数据没动**。
+            text: '导入未完成 —— 你原来的数据没有被改动。具体是哪一类原因，看页面上方那条提示。',
           },
     )
   }
@@ -161,13 +167,16 @@ export function DataPanel({ queue }: DataPanelProps) {
         aria-label="选择要导入的 JSON 文件"
       />
 
-      {/* 成功是一条绿条，失败是「标签 + 一句话」—— 两者都用 .status 的壳，
-          所以上下位置和留白完全一样，变的是内容结构。 */}
+      {/* 成功是一条绿条，失败是「标签 + 一句话」（或只有一句话 ——
+          原因已由别处报过时就不再贴标签，见 Status 的注释）。
+          三者都用 .status 的壳，所以上下位置和留白完全一样，变的是内容结构。 */}
       {status !== null &&
         (status.tone === 'ok' ? (
           <p className="status status-ok">{status.text}</p>
-        ) : (
+        ) : 'error' in status ? (
           <ErrorNote error={status.error} className="status status-bad" />
+        ) : (
+          <p className="status status-bad">{status.text}</p>
         ))}
     </section>
   )

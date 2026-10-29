@@ -23,6 +23,7 @@ import { CloudSyncPanel } from './CloudSyncPanel'
 import { ErrorNote } from './ErrorNote'
 import { DataPanel } from './DataPanel'
 import { TaskComposer } from './TaskComposer'
+import { WriteErrorBar } from './WriteErrorBar'
 import type { TaskQueue } from './useTaskQueue'
 
 interface TasksPageProps {
@@ -34,8 +35,21 @@ interface TasksPageProps {
 }
 
 export function TasksPage({ queue, notice, onCreated }: TasksPageProps) {
-  const { ranked, done, total, loaded, error, busy, busyTaskId, refresh, loadSamples, act, completeTask } =
-    queue
+  const {
+    ranked,
+    done,
+    total,
+    loaded,
+    error,
+    writeError,
+    dismissWriteError,
+    busy,
+    busyTaskId,
+    refresh,
+    loadSamples,
+    act,
+    completeTask,
+  } = queue
 
   /**
    * 待办按**添加时间倒序**排（最新的在最上面），顺带记下它在队列里的名次。
@@ -88,6 +102,11 @@ export function TasksPage({ queue, notice, onCreated }: TasksPageProps) {
         </p>
 
         {notice !== '' && <p className="list-note">{notice}</p>}
+
+        {/* Day 24：写失败在这里说一声就够 —— 下面的列表**不换掉**。
+            在这之前它会把整页变成「任务列表没读出来」，
+            于是「这条没删掉」被说成「你的列表看不见了」，而列表本来好好的。 */}
+        <WriteErrorBar error={writeError} onDismiss={dismissWriteError} />
 
         {/* ---------- 状态一：错误 ---------- */}
         {error !== null ? (

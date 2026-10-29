@@ -17,6 +17,7 @@ import { taskRepo } from '../data'
 import { activeConfig, deleteTaskRemote, patchTask } from '../data/cloud-sync'
 import type { Task } from '../core/types'
 import { ErrorNote } from './ErrorNote'
+import { WriteErrorBar } from './WriteErrorBar'
 import { formatMinutes } from './format'
 import { FactorBreakdown, describeSegment } from './TodayQueue'
 import type { TaskQueue } from './useTaskQueue'
@@ -28,7 +29,8 @@ interface TaskDetailPageProps {
 export function TaskDetailPage({ queue }: TaskDetailPageProps) {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { ranked, done, loaded, error, busy, busyTaskId, now, refresh, act, completeTask } = queue
+  const { ranked, done, loaded, error, writeError, dismissWriteError, busy, busyTaskId, now, refresh, act, completeTask } =
+    queue
 
   // ⚠️ 两个列表都要找：任务一旦标记完成，它就从 ranked 挪到了 done。
   //    只查 ranked 的话，用户刚点完「完成」，这一页立刻变成「找不到这件任务」——
@@ -144,6 +146,11 @@ export function TaskDetailPage({ queue }: TaskDetailPageProps) {
       <Link className="back-link" to="/tasks">
         ← 返回全部任务
       </Link>
+
+      {/* Day 24：删除 / 恢复 / 改标题失败，只在这一页顶上补一条，
+          页面内容照常留着 —— 用户还能看见这一件、也还能换个动作再试。
+          在这之前它会整页换成「这件任务没读出来」，标题把写失败说成了读失败。 */}
+      <WriteErrorBar error={writeError} onDismiss={dismissWriteError} />
 
       <h2 className="detail-title">{task.title}</h2>
 

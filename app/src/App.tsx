@@ -70,7 +70,7 @@ export function App() {
         </div>
         <p className="tagline">下一步做什么，让队列告诉你。</p>
         <p className="sub">把一堆散乱的任务丢进来，它算出先做哪件，并告诉你为什么。</p>
-        <div className="badge">Day 23 · 错误处理与安全边界</div>
+        <div className="badge">Day 24 · 用一个真实 Bug 练习定位和修复</div>
       </header>
 
       {/* 视图切换入口。放在页头下方 —— 先认地方，再看内容。 */}
