@@ -62,10 +62,22 @@ body {
   padding: 56px 24px 72px;
 }
 
-/* ---- 头部 ---- */
-
+/* ---- 头部 ----
+ *
+ * Day 24 收尾精修：原来页头是「文字一路往下堆」——
+ * 44px 品牌字、20px 标语、15px 副标、胶囊徽章、胶囊导航，**五样东西同一个重量**，
+ * 眼睛找不到落点。改法不是加东西，是**把对比拉出来**：
+ *   · 标语提到 24px / 700，让它成为真正的第二落点（原来 20px，和副标只差 5px）；
+ *   · 页头底部加一条分隔线 —— 有它，「这里开始是内容」才成立，
+ *     没有它，页头只是一段还没结束的文字；
+ *   · 徽章由「淡红底 + 红字」改成「描边 + 中性字」。
+ *     理由是全局的：红色在这套界面里是**行动色**（当前导航、主按钮、队首）。
+ *     徽章不是行动，它占着一块红，只会把真正的行动稀释掉。
+ */
 .hero {
-  margin-bottom: 28px;
+  margin-bottom: 30px;
+  padding-bottom: 26px;
+  border-bottom: 1px solid var(--line);
 }
 
 .hero-top {
@@ -80,40 +92,48 @@ body {
    这里归零，保证视觉和改之前一模一样，只改语义。 */
 .brand {
   margin: 0;
-  font-size: 44px;
+  font-size: 46px;
   font-weight: 700;
-  letter-spacing: 4px;
+  letter-spacing: 6px;
 }
 
 .brand-en {
-  font-size: 16px;
-  letter-spacing: 3px;
+  font-size: 13px;
+  letter-spacing: 4px;
   text-transform: uppercase;
   color: var(--ink-faint);
 }
 
+/* 20px → 24px。20px 的粗体和下面 15px 的副标只差一档，
+   读者会当成同一段话的两行；24px 才拉得出「标题 / 说明」的关系。 */
 .tagline {
-  margin: 12px 0 0;
-  font-size: 20px;
-  font-weight: 600;
+  margin: 14px 0 0;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.2px;
+  line-height: 1.35;
 }
 
 .sub {
-  margin: 6px 0 0;
+  margin: 8px 0 0;
   color: var(--ink-soft);
   font-size: 15px;
+  max-width: 34em;
 }
 
+/* 由「实心淡红胶囊」改成「描边胶囊」。
+   字号仍是 14px —— Day 9 从这里把 13px 提上来过，不能悄悄退回去。 */
 .badge {
   display: inline-block;
-  margin-top: 18px;
-  padding: 5px 12px;
+  margin-top: 16px;
+  padding: 4px 11px;
+  border: 1px solid var(--line);
   border-radius: 999px;
-  background: var(--accent-soft);
-  color: var(--accent);
-  /* Day 9 修复④：13px → 14px */
+  background: transparent;
+  color: var(--ink-soft);
   font-size: 14px;
   font-weight: 600;
+  letter-spacing: 0.2px;
 }
 
 /* ---- 顶部导航（Day 13） ----
@@ -162,25 +182,44 @@ body {
   outline-offset: 2px;
 }
 
-/* ---- 卡片 ---- */
-
+/* ---- 卡片 ----
+ *
+ * Day 24 收尾精修：四张卡片原来是同一个样子（同圆角、同边框、无阴影、同间距），
+ * 于是「今日预算 / 加任务 / 今日队列 / 数据与设置」看起来一样重要。
+ * 不等它们一样重要 —— 但现在不靠改布局去分主次（那会牵动结构），
+ * 先用三件成本极低的事把「面的感觉」做出来：
+ *   · 边框再淡一点、圆角再大一点（14 → 16）：卡片更像一张纸，不像一块格子；
+ *   · 加一层极淡的双层阴影：桌面端会有一点浮起感，不吃对比度；
+ *   · 卡片间距 18 → 22：密集的 18 会让四张卡糊成一大块。
+ */
 .card {
   background: var(--card);
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  padding: 22px 24px;
-  margin-bottom: 18px;
+  border: 1px solid #ebe8e1;
+  border-radius: 16px;
+  padding: 24px 26px;
+  margin-bottom: 22px;
+  box-shadow:
+    0 1px 2px rgba(28, 27, 31, 0.04),
+    0 10px 28px -22px rgba(28, 27, 31, 0.22);
 }
 
 /* Day 9 修复③：区块标题从 15px 提到 18px。
    设计规则要求「正文 14px，区块标题 18px 以上」——
-   15px 标题和 15px 正文一样大，扫视时找不出区块边界。 */
+   15px 标题和 15px 正文一样大，扫视时找不出区块边界。
+   （12-24 精修：字号不动，左侧加一道 3px 强调条当「章节标记」，并把字距
+     从 1px 收到 0.5px —— 1px 字距在中文里会把四个字拉得像两截。
+     ⚠️ 这道条**不能用强调红**：页面上四张卡就有四条，红一多就不红了。
+     它只需要「有边界」，不需要「被注意」；所以用中性暖灰，而把标题字色
+     从 --ink-soft 提到 --ink —— 层级交给**文字**，颜色留给行动。） */
 .card h2 {
   margin: 0 0 16px;
+  padding-left: 11px;
+  border-left: 3px solid #cfc9bb;
   font-size: 18px;
   font-weight: 700;
-  letter-spacing: 1px;
-  color: var(--ink-soft);
+  letter-spacing: 0.5px;
+  line-height: 1.35;
+  color: var(--ink);
 }
 
 /* ---- 今日预算条 ---- */
@@ -614,14 +653,19 @@ body {
   gap: 10px;
 }
 
+/* 🔴 12-24 精修：序号方块原来**全是实心红**，于是 7 张卡里有 7 个红块，
+   再加上红色分数、红色「专注」、红色主按钮 —— 红色被用成了背景色。
+   红色在这套界面里应该是**行动色**：只标记「当前最该做的那一件」。
+   所以默认改成中性（浅灰底 + 深灰字），只有队首那一张保留红底白字。
+   灰底 #eceae4 上的 --ink-soft(#5c5a63) 是 5.9:1，过 AA 正文线。 */
 .queue-no {
   flex: none;
   align-self: center;
   width: 24px;
   height: 24px;
   border-radius: 7px;
-  background: var(--accent);
-  color: #fff;
+  background: #eceae4;
+  color: var(--ink-soft);
   /* Day 9 修复④：12px → 13px。序号是「元信息」不是正文，
      但它在一个 24px 的圆角方块里，13px 已经是能放下且看得清的极限。 */
   font-size: 13px;
@@ -631,8 +675,14 @@ body {
   justify-content: center;
 }
 
+.queue-card:first-child .queue-no {
+  background: var(--accent);
+  color: #fff;
+}
+
+/* 排在后面的（7 天以外 / 无期限）再压一档，和卡片整体的压暗呼应 */
 .queue-card.not-urgent:not(:first-child) .queue-no {
-  background: var(--ink-faint);
+  background: #e6e3dc;
 }
 
 .queue-title {
@@ -642,12 +692,18 @@ body {
   overflow-wrap: anywhere;
 }
 
+/* 分数同理：只有队首用强调色。其余用 --ink-soft（白底 7.2:1），
+   数字本身仍是 17px/700，可读性靠字重和字号，不靠颜色。 */
 .queue-score {
   flex: none;
   font-size: 17px;
   font-weight: 700;
-  color: var(--accent);
+  color: var(--ink-soft);
   font-variant-numeric: tabular-nums;
+}
+
+.queue-card:first-child .queue-score {
+  color: var(--accent);
 }
 
 /* Day 9 修复④：这里是「一句话解释为什么排前面」，是最该读清的内容，
@@ -659,16 +715,21 @@ body {
   overflow-wrap: anywhere;
 }
 
+/* 12-24 精修：这里原本用等宽字体（ui-monospace…）。
+   等宽对「纯数字列」是对的，但这一行里混着「已逾期或 7 天内到期」这样的中文 ——
+   中文在等宽字体下字距被强行拉齐，读起来像代码注释。
+   换成正文同款字体，**对齐交给 tabular-nums** —— 数字照样逐位对齐，中文回到正常字距。 */
 .queue-meta {
   display: flex;
   flex-wrap: wrap;
+  align-items: baseline;
   gap: 10px;
-  margin-top: 6px;
+  margin-top: 8px;
   /* Day 9 修复④：11px → 13px。11px 在任何屏幕上都不是「正文」，
      连元信息都算不上 —— 它是装饰。统一提到 13px 这条元信息底线。 */
   font-size: 13px;
   color: var(--ink-faint);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-variant-numeric: tabular-nums;
 }
 
 .meta-overdue {
@@ -676,18 +737,35 @@ body {
   font-weight: 700;
 }
 
+/* 「为什么排这里」是**动作**，不是数据 —— 推到这一行最右端，和数据分开。
+   颜色由强调红降为 --ink-soft：一行里已经有一个红色「已逾期」了，
+   两个红挨着会互相削弱。悬停在卡片上时才点亮成强调色，作为可点的提示。 */
 .queue-hint {
+  margin-left: auto;
+  color: var(--ink-soft);
+  transition: color 0.15s;
+}
+
+.queue-body:hover .queue-hint {
   color: var(--accent);
 }
 
+/* 12-24 精修：右侧这列按钮原来宽度各随文字（「专注」比「完成」宽），
+   又都是左对齐，看起来像手滑没对齐。这里三件事一起钉死：
+   · stretch 让三颗按钮同宽（谁最宽就以谁为准）；
+   · min-width 保证空文案/单字时也不会缩成一条；
+   · text-align: center 让字居中 —— 等宽 + 居中才像一列控件，不像三个标签。 */
 .queue-actions {
   flex: none;
   display: flex;
   flex-direction: column;
+  align-items: stretch;
   gap: 6px;
+  min-width: 54px;
 }
 
 .queue-actions button {
+  min-width: 54px;
   padding: 5px 11px;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -696,8 +774,9 @@ body {
   /* Day 9 修复④：12px → 13px（完成/删除 按钮，属于操作元信息） */
   font-size: 13px;
   font-family: inherit;
+  text-align: center;
   cursor: pointer;
-  transition: border-color 0.15s, background 0.15s;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
 }
 
 .queue-actions button:hover:not(:disabled) {

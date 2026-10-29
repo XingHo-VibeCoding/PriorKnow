@@ -15,7 +15,8 @@
 | `cloud-notes.md` | 要查环境 ID / 额度 / 到期日 / 部署命令 | 云端资源笔记（Day 15 产）。含三条免费环境规则与全部排障记录 |
 
 🔴 **`api-contract.md` 是唯一仲裁物** —— 后端照它实现、前端照它调用。
-Day 16/17/18/22 实现完对应部分后要把状态改成「已实现」。
+Day 16/17/18/22 对应的四个业务接口**都已实现并线上验证**，状态列已全部改成「已实现」；
+Day 23/24 没做登录，所以文档里「登录之后才生效」的那几条**实际生效日推迟了**（文中已加补记）。
 
 ## 日志/ — 每日产出与排障
 
@@ -33,9 +34,15 @@ Day 16/17/18/22 实现完对应部分后要把状态改成「已实现」。
 | `day14-week2-validation.md` | 第 2 周周验证材料 |
 | `day15-cloudfunction-deploy.md` | 🔴 云函数部署排障全套（`--path` 冲突、HTTP 函数类型、`context.httpContext` 真实约定） |
 | `day15-frontend-deploy.md` | 🔴 静态托管部署（云端构建失败真相 + 本地构建直传的正确命令） |
+| `day21-week3-validation.md` | 第 3 周周验证，7 项全 PASS |
+| `day22-patch-delete.md` | 补齐 `PATCH` / `DELETE`；🔴 增量同步里**必须软删**的理由 + 那个 `cursor:null` 线上真 Bug |
+| `day23-error-and-security.md` | 错误分五类（`input/network/server/local/unknown`）+ 安全边界盘点（接口无认证） |
+| `day24-real-bug.md` | 🔴 **修一个真 Bug 的完整四步**：复现 → 定位 → 修复 → 验证。`error` 与 `writeError` 必须分开 |
 
 ⚠️ **Day 17 起先读 `day15-cloudfunction-deploy.md` 与 `day15-frontend-deploy.md`** ——
 CloudBase 排障的坑全在里面，不读会重复踩。
+⚠️ **Day 25 起先读 `day22-patch-delete.md` 与 `day24-real-bug.md`** ——
+两个「不报错但数据已经不对」的 Bug 都在里面，发布前检查要按它们的样子再查一遍。
 
 ## 素材/ — 配图
 
