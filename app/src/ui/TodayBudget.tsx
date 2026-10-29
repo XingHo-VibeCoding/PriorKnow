@@ -203,13 +203,24 @@ export function TodayBudget({ ranked, loaded }: TodayBudgetProps) {
           {formatMinutes(plan.used)}。
         </p>
       ) : notEnough && plan.shortest !== null ? (
-        // 注意这里**不显示空列表** —— 队列就在下面，照常列出全部任务
+        // 分支一：连队列里**最小**的一件都装不下 —— 今天是真的什么都做不了
         <div className="budget-warn">
           <p className="budget-warn-title">今天的时间不够完成任何一项</p>
           <p className="budget-warn-sub">
             队列里最省时的「{plan.shortest.title}」也要 {plan.shortest.minutes} 分钟，而今天只剩{' '}
             {minutes} 分钟。两条出路：① 把上面的预算改大一点；② 先只挑这一件小的做 ——
             下面的队列照常显示全部任务，不受影响。
+          </p>
+        </div>
+      ) : plan.count === 0 && plan.blocker !== null && plan.shortest !== null ? (
+        // 分支二：队首太大，但今天**够**做完队列里更小的那件。
+        // 这不是「时间不够」，是「排在最前的那件太大」—— 结论完全不同，所以不能共用上一段的说法。
+        <div className="budget-warn">
+          <p className="budget-warn-title">排在最前的那件，今天装不下</p>
+          <p className="budget-warn-sub">
+            第一件「{plan.blocker.title}」要 {plan.blocker.minutes} 分钟，而今天只剩 {minutes}{' '}
+            分钟。今天够做完最小的一件是「{plan.shortest.title}」，{plan.shortest.minutes}{' '}
+            分钟 —— 要么先做它，要么把预算改大。
           </p>
         </div>
       ) : (
@@ -229,13 +240,6 @@ export function TodayBudget({ ranked, loaded }: TodayBudgetProps) {
               style={{ width: `${fillPercent(plan.used, minutes)}%` }}
             />
           </div>
-
-          {plan.count === 0 && plan.blocker !== null && (
-            <p className="budget-note">
-              第一件「{plan.blocker.title}」要 {plan.blocker.minutes} 分钟，装不进今天的 {minutes}{' '}
-              分钟 —— 要么改大预算，要么先做队列里更小的一件。
-            </p>
-          )}
 
           {plan.unknown > 0 && (
             <p className="budget-note">
@@ -265,9 +269,9 @@ interface TodayPlan {
   unknown: number
   /** 队列里能估耗时的件数 */
   estimated: number
-  /** 最省时的那一项（用来解释「不够任何一项」） */
+  /** **全队列**最省时的那一项（与预算无关，用来回答「今天到底够做什么」） */
   shortest: MinutesRef | null
-  /** 第一件就装不下的那一项（预算够最小件、但第一件太大时用） */
+  /** 按队列顺序第一件就装不下的那一项（预算够最小件、但队首太大时用） */
   blocker: MinutesRef | null
 }
 
@@ -277,29 +281,42 @@ interface TodayPlan {
  * 规则是**顺序累加、装不下就停**，不做「跳过大的挑小的」这种优化。
  * 理由：队列顺序本身就是「该先做什么」的答案；跳过第一件去捡第三件，
  * 等于用预算把排序结果推翻了 —— 那预算就变成第二个排序器了。
- * 真遇到第一件装不下，界面会把这件事说出来（见上面的 blocker 提示），让用户自己决定。
+ * 真遇到第一件装不下，界面会把这件事说出来（见下面的两个分支），让用户自己决定。
+ *
+ * ⚠️ 这里必须**扫两遍**，不能合成一遍。
+ *   `shortest` 要回答的是「队列里最小的一件要多久」，这个数与预算无关；
+ *   而累加循环一遇到装不下就 `break`，扫到那时为止的「最小值」只是「队首」。
+ *   合成一遍的后果实测过：预算 60 分钟、队首 120 分钟时，界面会说
+ *   「队列里最省时的『交课设』也要 120 分钟」，可队列里明明有一件 20 分钟的 ——
+ *   一句话里两个事实都是假的。
  */
 function planToday(ranked: QueueEntry[], budget: number | null): TodayPlan {
-  let count = 0
-  let used = 0
+  // 第一遍：只看耗时这一维，与预算无关
   let unknown = 0
   let estimated = 0
   let shortest: MinutesRef | null = null
-  let blocker: MinutesRef | null = null
 
   for (const entry of ranked) {
     const minutes = entry.task.estimateMinutes
-
     // 未估算的不计入累计：不知道要多久，就不能算进「今天做得完」
     if (minutes === null) {
       unknown += 1
       continue
     }
-
     estimated += 1
     if (shortest === null || minutes < shortest.minutes) {
       shortest = { title: entry.task.title, minutes }
     }
+  }
+
+  // 第二遍：按队列顺序累加，装不下就停
+  let count = 0
+  let used = 0
+  let blocker: MinutesRef | null = null
+
+  for (const entry of ranked) {
+    const minutes = entry.task.estimateMinutes
+    if (minutes === null) continue
 
     if (budget !== null && used + minutes > budget) {
       // 装不下，停在这里（预算没填时不会走到这儿）
