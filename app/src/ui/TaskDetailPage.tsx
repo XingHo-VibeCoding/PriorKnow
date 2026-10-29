@@ -11,8 +11,10 @@
 //
 // 四种状态：加载中 / 错误 / 空（找不到）/ 成功。
 
+import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { taskRepo } from '../data'
+import { activeConfig, deleteTaskRemote, patchTask } from '../data/cloud-sync'
 import type { Task } from '../core/types'
 import { formatMinutes } from './format'
 import { FactorBreakdown, describeSegment } from './TodayQueue'
@@ -26,6 +28,22 @@ export function TaskDetailPage({ queue }: TaskDetailPageProps) {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { ranked, done, loaded, error, busy, busyTaskId, now, refresh, act, completeTask } = queue
+
+  // ⚠️ 两个列表都要找：任务一旦标记完成，它就从 ranked 挪到了 done。
+  //    只查 ranked 的话，用户刚点完「完成」，这一页立刻变成「找不到这件任务」——
+  //    看起来像数据丢了，其实只是换了一组。
+  //
+  // 🔴 这两行必须放在**所有 early return 之前** —— 下面的改标题草稿要用它算初值，
+  //    而 hooks 一旦被某个提前 return 跳过，就会触发「渲染的 hook 数量不一致」。
+  const found = ranked.find((item) => item.task.id === id)
+  const finished = done.find((task) => task.id === id)
+  const currentTitle = found ? found.task.title : finished ? finished.title : ''
+
+  // Day 22：改标题的草稿。任务换了（切到另一条）或标题被改过，就重新同步草稿
+  const [titleDraft, setTitleDraft] = useState(currentTitle)
+  useEffect(() => {
+    setTitleDraft(currentTitle)
+  }, [currentTitle])
 
   // ---------- 状态一：错误 ----------
   if (error !== '') {
@@ -57,11 +75,7 @@ export function TaskDetailPage({ queue }: TaskDetailPageProps) {
     )
   }
 
-  // ⚠️ 两个列表都要找：任务一旦标记完成，它就从 ranked 挪到了 done。
-  //    只查 ranked 的话，用户刚点完「完成」，这一页立刻变成「找不到这件任务」——
-  //    看起来像数据丢了，其实只是换了一组。
-  const found = ranked.find((item) => item.task.id === id)
-  const finished = done.find((task) => task.id === id)
+  // ⚠️ 上面已经算过 found / finished（hooks 之前），这里不再重复。
 
   // ---------- 状态三：空（找不到） ----------
   if (!found && !finished) {
@@ -90,13 +104,38 @@ export function TaskDetailPage({ queue }: TaskDetailPageProps) {
   /** 删除。删完这一页就没有内容了（会变成「找不到」），所以主动退回列表页。 */
   async function handleDelete() {
     if (!window.confirm(`删除「${task.title}」？这一步不能撤销。`)) return
-    const ok = await act(() => taskRepo.deleteTask(task.id), `删除「${task.title}」失败`)
+    const ok = await act(async () => {
+      // Day 22：先删云端再删本地（顺序理由见 TasksPage 同一处注释）。
+      const config = activeConfig()
+      if (config) await deleteTaskRemote(task.id, config)
+      await taskRepo.deleteTask(task.id)
+    }, `删除「${task.title}」失败`)
     if (ok) navigate('/tasks')
   }
 
   /** 恢复为待办 —— 复用数据层现成的 updateTask，和队列里「撤销」是同一个动作。 */
   async function handleRestore() {
     await act(() => taskRepo.updateTask(task.id, { status: 'todo' }), `恢复「${task.title}」失败`)
+  }
+
+  /**
+   * 改标题（Day 22）。
+   *
+   * 🔴 只发 `{ title }` 一个字段 —— 这正是 PATCH 的用法：
+   *    没传的字段由服务端沿用库里现值。要是图省事把整条任务发过去，
+   *    就等于用前端的内存副本覆盖云端（PUT 的语义），
+   *    别的设备刚改过的字段会被悄悄写回去。
+   */
+  async function handleRename(e: React.FormEvent) {
+    e.preventDefault()
+    const next = titleDraft.trim()
+    if (next === '' || next === task.title) return
+
+    await act(async () => {
+      const config = activeConfig()
+      if (config) await patchTask(task.id, { title: next }, config)
+      await taskRepo.updateTask(task.id, { title: next })
+    }, `改「${task.title}」的标题失败`)
   }
 
   return (
@@ -152,6 +191,30 @@ export function TaskDetailPage({ queue }: TaskDetailPageProps) {
           <dd>{task.status === 'done' ? '已完成' : '待办'}</dd>
         </div>
       </dl>
+
+      {/* Day 22 新增：就地改标题。这是「修改」在界面上唯一的真实入口 ——
+          发 PATCH 时只带 title 一个字段，其余字段由服务端保持原值。 */}
+      <div className="detail-block">
+        <p className="detail-sub">改标题</p>
+        <form className="detail-edit" onSubmit={(e) => void handleRename(e)}>
+          <input
+            aria-label="任务标题"
+            value={titleDraft}
+            onChange={(e) => setTitleDraft(e.target.value)}
+            maxLength={200}
+            disabled={busy}
+          />
+          <button
+            type="submit"
+            disabled={busy || titleDraft.trim() === '' || titleDraft.trim() === task.title}
+          >
+            {busy ? '处理中…' : '保存'}
+          </button>
+        </form>
+        <p className="detail-note">
+          配了云端同步时，这一改会同时发到云端；只提交标题这一个字段，别的字段不动。
+        </p>
+      </div>
 
       <div className="btn-row">
         {found ? (

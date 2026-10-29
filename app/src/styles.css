@@ -1093,6 +1093,54 @@ body {
   color: var(--ink-faint);
 }
 
+/* Day 22：详情页就地改标题。
+   输入框用 flex-basis 撑开、按钮跟在右边，窄屏（<320px 可用宽度）自动落成两行 ——
+   和加任务表单同一套观感，不再另造一种按钮。 */
+.detail-edit {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.detail-edit input {
+  flex: 1 1 240px;
+  min-width: 0;
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--card);
+  color: var(--ink);
+  font-size: 15px;
+  font-family: inherit;
+}
+
+.detail-edit input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.detail-edit button {
+  padding: 9px 18px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--card);
+  color: var(--ink);
+  font-size: 14px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.detail-edit button:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.detail-edit button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 /* 四项元信息。240px 一列 —— 内容列宽 624px 时正好排成两列，
    再窄（手机）自动落成一列。 */
 .detail-meta {

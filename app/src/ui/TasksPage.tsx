@@ -18,6 +18,7 @@
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { taskRepo } from '../data'
+import { activeConfig, deleteTaskRemote } from '../data/cloud-sync'
 import { CloudSyncPanel } from './CloudSyncPanel'
 import { DataPanel } from './DataPanel'
 import { TaskComposer } from './TaskComposer'
@@ -152,10 +153,19 @@ export function TasksPage({ queue, notice, onCreated }: TasksPageProps) {
                           className="danger"
                           onClick={() => {
                             if (window.confirm(`删除「${task.title}」？这一步不能撤销。`)) {
-                              void act(
-                                () => taskRepo.deleteTask(task.id),
-                                `删除「${task.title}」失败`,
-                              )
+                              void act(async () => {
+                                // Day 22：先删云端，再删本地。
+                                // 🔴 顺序不能反 —— 云端没删成就先删本地的话，
+                                //    下次拉取会把这条墓碑之外的原行拉回来「复活」，
+                                //    而且中间那段时间用户以为已经删了。
+                                // ⚠️ 没配云端（config 为 null）就只删本地，不报错。
+                                const config = activeConfig()
+                                if (config) await deleteTaskRemote(task.id, config)
+                                await taskRepo.deleteTask(task.id)
+                                // 🔴 刻意**不**用 DELETE 返回的 cursor 去挪本地游标：
+                                //    那会跳过 seq 在它之前的其他变更，静默丢数据。
+                                //    这条墓碑下次拉取会被 applyRemote 认出来，已经删了就是无害的。
+                              }, `删除「${task.title}」失败`)
                             }
                           }}
                           disabled={busy}

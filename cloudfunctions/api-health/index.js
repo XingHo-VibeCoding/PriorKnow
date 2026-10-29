@@ -81,7 +81,12 @@
 //  🔴 依赖只能单向：入口 → 业务 → 数据。数据层不认识上面两层。
 // ════════════════════════════════════════════════════════════
 const { reply, replyRaw, readHeader } = require('./http/reply')
-const { handleGetTasks, handlePostTasks } = require('./tasks/handlers')
+const {
+  handleGetTasks,
+  handlePostTasks,
+  handlePatchTask,
+  handleDeleteTask,
+} = require('./tasks/handlers')
 
 exports.main = async (event, context) => {
   const http = (context && context.httpContext) || {}
@@ -117,7 +122,10 @@ exports.main = async (event, context) => {
   if (method === 'OPTIONS') {
     const headers = {
       'Access-Control-Allow-Headers': 'Content-Type, X-User-Id',
-      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+      // 🔴 Day 22 加了 PATCH / DELETE —— 这里必须同步改，否则预检回的方法列表
+      //    里没有它们，浏览器会在预检阶段就把请求拦掉，而后端代码根本收不到。
+      //    表现是前端报 CORS 错误、云函数日志里一条记录都没有。
+      'Access-Control-Allow-Methods': 'GET, POST, PATCH, DELETE, OPTIONS',
       'Access-Control-Max-Age': '86400',
     }
     // 契约第四节：`Access-Control-Allow-Origin` **不要用 `*`**。
@@ -131,6 +139,22 @@ exports.main = async (event, context) => {
 
   // ── 路由分派 ────────────────────────────────────────
   const isTasks = path === '/tasks' || path === '/api/tasks'
+
+  // ── 带 id 的路径：`/tasks/:id`（Day 22 PATCH / DELETE 用）──────────
+  // 🔴 只认**一段** id：`/tasks/a/b` 不匹配，落到 404。
+  //    结尾斜杠上面已经统一去掉了，所以 `/tasks/abc/` 等价于 `/tasks/abc`。
+  // ⚠️ id 的合法字符（[A-Za-z0-9_-]）由 handler 里的 ID_FORMAT 判，
+  //    这里只负责把路径片段取出来 —— 越权校验不在路由层做。
+  const itemMatch = path.match(/^\/(?:api\/)?tasks\/([^/]+)$/)
+  let taskId = null
+  if (itemMatch) {
+    try {
+      taskId = decodeURIComponent(itemMatch[1])
+    } catch {
+      // 非法百分号编码（如 %ZZ）：原样传下去，让 ID_FORMAT 回一句人话的 400
+      taskId = itemMatch[1]
+    }
+  }
 
   if (method === 'GET') {
     if (isHealth) {
@@ -175,12 +199,33 @@ exports.main = async (event, context) => {
     return reply(404, { ok: false, data: null, error: '没有这个接口' })
   }
 
+  // ── PATCH /api/tasks/:id —— 契约第六节第 3 个接口（Day 22）──────
+  if (method === 'PATCH') {
+    if (taskId) return await handlePatchTask(taskId, event, http.headers)
+    // PATCH /api/tasks（不带 id）不支持：改哪一条必须写清楚
+    return reply(404, {
+      ok: false,
+      data: null,
+      error: '没有这个接口：改一条任务要写成 PATCH /api/tasks/{id}',
+    })
+  }
+
+  // ── DELETE /api/tasks/:id —— 契约第六节第 4 个接口（Day 22）──────
+  if (method === 'DELETE') {
+    if (taskId) return await handleDeleteTask(taskId, http.headers)
+    return reply(404, {
+      ok: false,
+      data: null,
+      error: '没有这个接口：删一条任务要写成 DELETE /api/tasks/{id}',
+    })
+  }
+
   // ── 其余方法：明确 405，不悄悄返回 200 ────────────────────
-  // 悄悄返回 200 会让调试变难。PATCH / DELETE 在 Day 22 才做。
+  // 悄悄返回 200 会让调试变难。
   return reply(
     405,
     { ok: false, data: null, error: `这个接口不支持 ${method} 请求` },
-    { Allow: 'GET, POST, OPTIONS' }
+    { Allow: 'GET, POST, PATCH, DELETE, OPTIONS' }
   )
 }
 

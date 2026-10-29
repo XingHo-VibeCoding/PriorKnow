@@ -287,3 +287,63 @@ export async function postRows(
 export async function pullSince(since: number, config: SyncConfig): Promise<PullData> {
   return request<PullData>(`/tasks?since=${Math.max(0, Math.floor(since))}`, { method: 'GET' }, config)
 }
+
+// ---------- Day 22：改一条 / 删一条 ----------
+
+/** PATCH 成功时 data 的形状（契约第六节第 3 条） */
+export interface PatchData {
+  cursor: number
+  accepted: Array<{ id: string; seq: number; corrected?: boolean; task: RemoteTask }>
+  rejected: RejectedItem[]
+}
+
+/** DELETE 成功时 data 的形状（契约第六节第 4 条） */
+export interface DeleteData {
+  cursor: number
+  /** 上一次已经删成功过 —— 这是**幂等返回，不是错误** */
+  alreadyDeleted: boolean
+  deleted: { id: string; seq?: number; deletedAt: string | null }
+}
+
+/**
+ * 改一条任务。**只改传进来的字段**，没传的保持库里现值。
+ *
+ * 🔴 别用它来「整条覆盖」：那正是 PUT 的语义，而契约明确不做 PUT ——
+ *    因为整份覆盖会把没打算动的字段（含 `seq`）一起写坏。
+ *    只传想改的那一两个键，是这个接口唯一正确的用法。
+ *
+ * ⚠️ id 走路径，**不放在请求体里** —— body 里带 `id` 会被服务端忽略。
+ */
+export async function patchTask(
+  id: string,
+  fields: Record<string, unknown>,
+  config: SyncConfig,
+): Promise<PatchData> {
+  return request<PatchData>(
+    `/tasks/${encodeURIComponent(id)}`,
+    { method: 'PATCH', body: JSON.stringify(fields) },
+    config,
+  )
+}
+
+/**
+ * 删一条任务（服务端是**软删**：写 `deletedAt`，行留着）。
+ *
+ * 🔴 返回值里要区分 `alreadyDeleted`：重复删同一条会返回 `true` 而不是报错，
+ *    这是幂等设计 —— 用户双击、或网络重试，都不该看到一条红字。
+ * ⚠️ 它**不是**彻底删除。把 `purgedAt` 打上的那条路仍然只有「推送」能走。
+ */
+export async function deleteTaskRemote(id: string, config: SyncConfig): Promise<DeleteData> {
+  return request<DeleteData>(`/tasks/${encodeURIComponent(id)}`, { method: 'DELETE' }, config)
+}
+
+/**
+ * 取「当前可用的同步配置」：两个字段都填了才算可用，否则返回 `null`。
+ *
+ * 界面用它决定「这次删除要不要先问云端」——
+ * 没配云端的用户，删除就只是本地删除，不该弹一个「连不上接口」的错。
+ */
+export function activeConfig(): SyncConfig | null {
+  const config = loadConfig()
+  return config.baseUrl.trim() && config.userId.trim() ? config : null
+}
